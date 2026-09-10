@@ -2,5 +2,6 @@ node_modules/
 dist/
 dist-electron/
 release/
+certs/
 *.log
 .DS_Store

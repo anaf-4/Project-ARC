@@ -3,12 +3,32 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:preview": "vite build && electron .",
+    "electron:build": "vite build && electron-builder"
   },
   "devDependencies": {
+    "electron": "^44.3.0",
+    "electron-builder": "^26.15.3",
     "vite": "^5.4.0"
+  },
+  "build": {
+    "appId": "com.projectarc.game",
+    "productName": "Project ARC",
+    "files": ["dist/**/*", "electron/**/*"],
+    "directories": { "output": "release" },
+    "win": {
+      "target": ["nsis"]
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
   }
 }
