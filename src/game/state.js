@@ -13,6 +13,7 @@ export function newGame(sim, cfg) {
     players: [], human: null, cam: { x: 0, y: 0 }, kills: 0, mode: 'play',
     spawnAcc: 0, nextRush: cfg.stage / 15, rush: 0, bossIdx: 0, bossTimes: [cfg.stage / 3, cfg.stage * 2 / 3, cfg.stage], bosses: [],
     won: false, ending: 0, shake: 0, uid: 1, bonusShards: 0, rerolls: sim.meta.lv.reroll || 0,
+    viewW: 1280, viewH: 800,
   };
   const others = shuffle(Object.keys(CLASSES).filter(k => k !== cfg.cls));
   const h = makePlayer(sim, cfg.cls, true, sim.G.demo ? 'ARC' : '나');
