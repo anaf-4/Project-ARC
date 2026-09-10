@@ -37,6 +37,7 @@ export function netSimFromState(state, localSessionId) {
     });
   });
   const cam = human ? { x: human.x, y: human.y } : { x: 0, y: 0 };
+  // WARN: G.human can be null until localSessionId appears in state.players; render.js:drawHUD dereferences G.human unconditionally — callers must skip render() while null
   return {
     G: {
       players, human, cam, time: state.time, kills: state.kills, bosses: enemies.filter(e => e.boss),
