@@ -1,13 +1,18 @@
-// Colyseus network schema for room state (Task 11).
+// Colyseus network schema for room state (Task 11; downgraded to
+// @colyseus/schema@3.0.76 in the fix-up task to match colyseus.js@0.16.22's
+// wire protocol / peer dependency).
 //
 // Uses @colyseus/schema's decorator-free `type()` function-call form:
 // `type('string')(Klass.prototype, 'field')`. This project has no
-// TS/Babel decorator pipeline configured (plain Vite+ESM), and v5.0.27's
-// `type()` returns a plain `(target, field) => void` function (confirmed by
-// reading node_modules/@colyseus/schema/build/index.mjs) — it's a legacy-style
-// decorator, so calling it directly like this is a supported, non-deprecated
-// pattern (unlike `defineTypes()`, which is the same thing but flagged
-// deprecated in favor of the new `schema()`/`t.*` builder API).
+// TS/Babel decorator pipeline configured (plain Vite+ESM). `type()` returns
+// a plain `(target, field) => void` function in BOTH v5.0.27 and v3.0.76
+// (confirmed by reading node_modules/@colyseus/schema/build/esm/index.mjs
+// after the downgrade, and by round-tripping RoomState through
+// `.toJSON()` at v3.0.76 — field values came back correctly) — it's a
+// legacy-style decorator, so calling it directly like this is a supported
+// pattern on both versions (unlike `defineTypes()`, which is the same thing
+// but flagged deprecated in favor of the new `schema()`/`t.*` builder API).
+// No rewrite of the field declarations below was needed for the downgrade.
 //
 // Note: unlike classes built with the `schema()` builder, plain `type()`-
 // annotated classes do NOT auto-instantiate map/array/collection fields —

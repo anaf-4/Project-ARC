@@ -44,8 +44,9 @@
     }
   },
   "dependencies": {
-    "@colyseus/schema": "^5.0.27",
-    "colyseus": "^0.18.5",
+    "@colyseus/schema": "^3.0.0",
+    "colyseus": "^0.16.5",
+    "colyseus.js": "^0.16.22",
     "express": "^5.2.1"
   }
 }

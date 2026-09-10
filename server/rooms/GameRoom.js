@@ -1,9 +1,14 @@
-// Server-side authoritative simulation room (Task 12).
+// Server-side authoritative simulation room (Task 12; downgraded to
+// colyseus@0.16.5 in the fix-up task to match colyseus.js@0.16.22's wire
+// protocol).
 //
-// Colyseus 0.18.5 API note: `Room#setSimulationInterval` and `Room#setState`
-// are marked @deprecated in node_modules/@colyseus/core/build/Room.d.ts —
-// renamed to `setTimestep` and the `.state =` setter respectively (same
-// signatures). This file uses the non-deprecated names; everything else
+// Colyseus 0.16.5 API note (checked against
+// node_modules/@colyseus/core/build/Room.d.ts, @colyseus/core@0.16.26):
+// `setTimestep` does not exist in this version at all — only
+// `setSimulationInterval` is available for the simulation loop (and it is
+// NOT deprecated here). `Room#setState` IS marked @deprecated in favor of
+// the `.state =` setter, same as in 0.18.5. This file therefore uses
+// `setSimulationInterval` + `this.state =`; everything else
 // (onCreate/onJoin/onLeave/onMessage, this.clients, client.sessionId) matches
 // the brief as-is.
 import { Room } from 'colyseus';
@@ -26,7 +31,7 @@ export class GameRoom extends Room {
       this.inputs.set(client.sessionId, { x: Number(msg.x) || 0, y: Number(msg.y) || 0 });
     });
 
-    this.setTimestep(() => this.tick(), 1000 / TICK_HZ);
+    this.setSimulationInterval(() => this.tick(), 1000 / TICK_HZ);
   }
 
   onJoin(client, options) {
