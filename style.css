@@ -1,0 +1,104 @@
+:root{
+  --night:#140f2b; --deep:#0d0a1f; --bone:#efe6d2; --mute:#a59fc4;
+  --aether:#6ff3e8; --violet:#9b7bff; --ember:#ff8a3d; --danger:#ff5277; --gold:#ffd166;
+  --display:"Black Han Sans","Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+  --body:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--night);color:var(--bone);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--aether);outline-offset:2px}
+
+/* ---------- 로비 ---------- */
+#lobby{position:fixed;inset:0;z-index:10;display:none}
+#lobby.on{display:block}
+.lobby{position:absolute;left:0;top:0;bottom:0;width:min(640px,100%);padding:44px 48px 40px;overflow-y:auto;
+  background:linear-gradient(90deg,rgba(13,10,31,.97) 0%,rgba(13,10,31,.93) 72%,rgba(13,10,31,0) 100%)}
+.logo{position:relative;z-index:0;isolation:isolate;font-family:var(--display);font-size:clamp(72px,12vw,128px);line-height:.88;letter-spacing:.01em;
+  color:transparent;-webkit-text-stroke:2px var(--aether)}
+.logo::before{content:attr(data-t);position:absolute;left:7px;top:7px;z-index:-1;color:#2a1f5c;-webkit-text-stroke:0}
+.tagline{margin-top:14px;color:var(--mute);font-size:15px;line-height:1.6;max-width:44ch}
+.lobby h2{font-family:var(--display);font-weight:400;font-size:21px;margin:30px 0 12px;display:flex;align-items:baseline;gap:12px}
+.lobby h2 .shards{font-family:var(--body);font-size:14px;color:var(--gold);font-weight:700}
+.classes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.cls{text-align:left;display:grid;grid-template-columns:40px 1fr;column-gap:12px;row-gap:3px;align-items:start;
+  background:rgba(239,230,210,.035);border:1px solid rgba(239,230,210,.12);border-left:4px solid var(--c);border-radius:4px;padding:12px 14px}
+.cls:hover{background:rgba(239,230,210,.07)}
+.cls[aria-pressed="true"]{background:rgba(111,243,232,.08);border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.sigil{grid-row:span 3;width:40px;height:40px;border-radius:50%;background:var(--c);color:var(--night);display:grid;place-items:center;font-family:var(--display);font-size:20px}
+.cname{font-weight:800;font-size:16px}.cname small{font-weight:500;color:var(--mute);font-size:12px;margin-left:6px}
+.cdesc{font-size:13px;color:#cfc8e8;line-height:1.45}
+.cmeta{font-size:12px;color:var(--mute)}
+.opts{display:flex;flex-wrap:wrap;gap:28px}
+.seg{display:inline-flex;border:1px solid rgba(239,230,210,.2);border-radius:999px;padding:3px;gap:2px}
+.seg button{background:none;border:0;border-radius:999px;padding:7px 15px;font-size:14px;color:var(--mute)}
+.seg button[aria-pressed="true"]{background:var(--aether);color:var(--night);font-weight:800}
+.opthint{font-size:12px;color:var(--mute);margin-top:7px}
+.meta{display:flex;flex-direction:column;border-top:1px solid rgba(239,230,210,.1)}
+.mrow{display:grid;grid-template-columns:28px 1fr auto auto;gap:12px;align-items:center;padding:9px 2px;border-bottom:1px solid rgba(239,230,210,.1)}
+.mrow .mi{font-size:18px;text-align:center}
+.mrow b{font-size:14px}.mrow span{display:block;font-size:12px;color:var(--mute)}
+.pips{display:flex;gap:3px}.pips i{width:8px;height:8px;border-radius:2px;background:rgba(239,230,210,.14)}.pips i.on{background:var(--gold)}
+.buy{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.4);color:var(--gold);border-radius:4px;padding:5px 10px;font-size:13px;font-weight:700;min-width:64px}
+.buy:disabled{opacity:.35;cursor:not-allowed}
+.cta{margin-top:30px;font-family:var(--display);font-size:28px;background:var(--ember);color:#1f0e04;border:0;border-radius:6px;padding:14px 52px;box-shadow:0 6px 0 #a94b14}
+.cta:active{transform:translateY(3px);box-shadow:0 3px 0 #a94b14}
+.keys{margin-top:16px;font-size:13px;color:var(--mute);line-height:1.7}
+.keys kbd{font-family:var(--body);font-size:12px;border:1px solid rgba(239,230,210,.25);border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:var(--bone)}
+
+/* ---------- 모달 공통 ---------- */
+.modal{position:fixed;inset:0;z-index:20;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(13,10,31,.74);backdrop-filter:blur(3px)}
+.modal.on{display:flex}
+.box{width:min(900px,100%);max-height:100%;overflow-y:auto;text-align:center}
+.mtitle{font-family:var(--display);font-size:clamp(40px,7vw,60px);color:var(--aether);line-height:1}
+.msub{color:var(--mute);margin:10px 0 24px;font-size:15px}
+.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;text-align:left}
+.card{position:relative;background:#1b1439;border:1px solid rgba(239,230,210,.14);border-top:4px solid var(--k);border-radius:6px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:6px;min-height:200px}
+.card:hover,.card:focus-visible{border-color:var(--k);background:#221a47;transform:translateY(-2px)}
+.card .ic{font-size:34px;line-height:1.1}
+.card .nm{font-weight:800;font-size:18px}
+.card .lvtag{font-size:13px;color:var(--k);font-weight:700}
+.card p{font-size:14px;color:#d6cfee;line-height:1.5}
+.card .evo{margin-top:auto;font-size:12px;color:var(--aether);border-top:1px dashed rgba(111,243,232,.3);padding-top:8px}
+.card .key{position:absolute;top:10px;right:12px;font-size:12px;color:var(--mute);border:1px solid rgba(239,230,210,.2);border-radius:4px;padding:0 6px}
+.ghost{margin-top:18px;background:none;border:1px solid rgba(239,230,210,.25);border-radius:999px;padding:8px 20px;color:var(--bone);font-size:14px}
+.ghost:disabled{opacity:.35;cursor:not-allowed}
+.btnrow{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.btnrow .cta{margin-top:0;font-size:22px;padding:11px 34px}
+
+/* 일시정지, 결과 */
+.panel{background:#1b1439;border:1px solid rgba(239,230,210,.14);border-radius:6px;padding:18px 20px;text-align:left;margin-top:14px}
+.panel h3{font-family:var(--display);font-weight:400;font-size:18px;margin-bottom:10px}
+.build{display:flex;flex-wrap:wrap;gap:8px}
+.slot{display:flex;align-items:center;gap:6px;background:rgba(239,230,210,.05);border:1px solid rgba(239,230,210,.12);border-radius:4px;padding:5px 9px;font-size:13px}
+.slot.evo{border-color:var(--gold);color:var(--gold)}
+.recipes{width:100%;border-collapse:collapse;font-size:13px}
+.recipes td{padding:7px 6px;border-bottom:1px solid rgba(239,230,210,.08);vertical-align:middle}
+.recipes td.arrow{color:var(--mute);text-align:center}
+.recipes tr.have td{color:var(--aether)}
+.recipes tr.done td{color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.stat b{display:block;font-family:var(--display);font-weight:400;font-size:28px}
+.stat span{font-size:12px;color:var(--mute)}
+
+/* 배너, 버튼 */
+#banner{position:fixed;left:50%;top:78px;transform:translate(-50%,-8px);z-index:15;pointer-events:none;opacity:0;
+  font-family:var(--display);font-size:20px;padding:9px 22px;border-radius:999px;background:rgba(13,10,31,.85);border:1px solid var(--bk,#6ff3e8);color:var(--bk,#6ff3e8);
+  transition:opacity .25s,transform .25s;white-space:nowrap;max-width:94vw;overflow:hidden;text-overflow:ellipsis}
+#banner.on{opacity:1;transform:translate(-50%,0)}
+#banner.warn{--bk:var(--ember)}#banner.danger{--bk:var(--danger)}#banner.good{--bk:var(--aether)}
+#banner.evo{--bk:var(--gold);font-size:24px;box-shadow:0 0 30px rgba(255,209,102,.35)}
+#pauseBtn{position:fixed;right:14px;bottom:14px;z-index:12;width:44px;height:44px;border-radius:50%;background:rgba(13,10,31,.7);border:1px solid rgba(239,230,210,.25);font-weight:900;display:none}
+#pauseBtn.on{display:block}
+
+@media (max-width:720px){
+  .lobby{padding:28px 20px 30px;background:rgba(13,10,31,.93)}
+  .classes{grid-template-columns:1fr}
+  .choices{grid-template-columns:1fr}
+  .card{min-height:0}
+  .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (prefers-reduced-motion:reduce){
+  #banner{transition:none}.card:hover{transform:none}
+}
