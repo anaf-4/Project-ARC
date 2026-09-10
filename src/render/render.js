@@ -1,8 +1,6 @@
 import { cv, ctx, W, H, DPR } from '../core/canvas.js';
 import { TAU, rand, clamp, FONT_BODY, FONT_DISP, FONT_EMOJI, fmt } from '../core/utils.js';
 import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS } from '../data/tables.js';
-import { enemies, projs, ebul, drops, fxs, texts } from '../core/pool.js';
-import { G } from '../game/state.js';
 import { wst } from '../game/weapons.js';
 import { touch } from '../game/input.js';
 
@@ -39,7 +37,8 @@ function shapePath(shape, x, y, r, ph) {
   else if (shape === 'square') { ctx.rect(x - r, y - r, r * 2, r * 2); }
   else { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r, y + r * 0.8); ctx.lineTo(x - r, y + r * 0.8); ctx.closePath(); }
 }
-function drawDrops() {
+function drawDrops(sim) {
+  const { drops } = sim.pools;
   const tiers = [[0, 3, '#6ff3e8', 4], [3, 12, '#9b7bff', 5.5], [12, 1e9, '#ff8a3d', 7]];
   for (const [lo, hi, col, s] of tiers) {
     ctx.beginPath(); let any = false;
@@ -66,8 +65,8 @@ function drawDrops() {
     }
   }
 }
-function drawEnemies() {
-  const L = enemies.live;
+function drawEnemies(sim) {
+  const G = sim.G, L = sim.pools.enemies.live;
   for (const tid of ENEMY_KINDS) {
     const T = ETYPES[tid]; ctx.beginPath(); let any = false;
     for (const e of L) {
@@ -92,10 +91,11 @@ function drawEnemies() {
       ctx.lineWidth = 3; ctx.strokeStyle = '#ffd166'; ctx.stroke();
       ctx.fillStyle = '#140f2b'; circle(e.x + e.fx * 10, e.y + e.fy * 10, 4); ctx.fill();
       hpBar(e.x, e.y - e.r - 10, 50, e.hp / e.maxHp, '#ffd166');
-    } else if (e.boss) drawBoss(e);
+    } else if (e.boss) drawBoss(sim, e);
   }
 }
-function drawBoss(e) {
+function drawBoss(sim, e) {
+  const G = sim.G;
   if (e.teleT > 0) {
     const k = 1 - e.teleT / 0.7, len = e.speed * 5.5 * 0.75;
     ctx.strokeStyle = `rgba(255,82,119,${0.12 + 0.25 * k})`; ctx.lineWidth = e.r * 1.8; ctx.lineCap = 'round';
@@ -112,7 +112,8 @@ function hpBar(x, y, w, r, col) {
   ctx.fillStyle = 'rgba(13,10,31,0.8)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * clamp(r, 0, 1), 4);
 }
-function drawAuras() {
+function drawAuras(sim) {
+  const G = sim.G;
   for (const p of G.players) {
     if (p.dead) continue;
     if (CLASSES[p.cls].aura) {
@@ -136,7 +137,8 @@ function drawAuras() {
     }
   }
 }
-function drawPlayers() {
+function drawPlayers(sim) {
+  const G = sim.G;
   for (const p of G.players) {
     if (p.dead) {
       const pulse = 1 + 0.08 * Math.sin(G.clock * 5);
@@ -161,8 +163,8 @@ function drawPlayers() {
     if (G.players.length > 1) { ctx.font = '700 11px ' + FONT_BODY; ctx.textAlign = 'center'; ctx.fillStyle = p.color; ctx.fillText(p.name, p.x, p.y - p.r - 8); }
   }
 }
-function drawProjs() {
-  for (const pr of projs.live) {
+function drawProjs(sim) {
+  for (const pr of sim.pools.projs.live) {
     if (!pr.alive || !vis(pr.x, pr.y, 40)) continue;
     if (pr.kind === 'bullet') {
       const sp = Math.hypot(pr.vx, pr.vy) || 1;
@@ -187,7 +189,8 @@ function drawProjs() {
     }
   }
 }
-function drawEbul() {
+function drawEbul(sim) {
+  const { ebul } = sim.pools;
   ctx.fillStyle = '#ff5277'; ctx.beginPath(); let any = false;
   for (const b of ebul.live) { if (!b.alive || !vis(b.x, b.y, 10)) continue; any = true; ctx.moveTo(b.x + b.r, b.y); ctx.arc(b.x, b.y, b.r, 0, TAU); }
   if (!any) return;
@@ -197,7 +200,8 @@ function drawEbul() {
   ctx.fill();
 }
 function polyline(pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.stroke(); }
-function drawFx() {
+function drawFx(sim) {
+  const { fxs, texts } = sim.pools;
   for (const f of fxs.live) {
     if (!f.alive) continue;
     const k = f.t / f.life, al = 1 - k, o = f.owner || f;
@@ -244,9 +248,10 @@ function drawFx() {
   }
   ctx.globalAlpha = 1;
 }
-function drawIndicators() {
+function drawIndicators(sim) {
+  const G = sim.G;
   const items = [];
-  for (const g of drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, '#ffd166');
+  for (const g of sim.pools.drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, '#ffd166');
   for (const p of G.players) if (p.dead && p !== G.human) items.push(p.x, p.y, p.color);
   for (const b of G.bosses) if (b.alive) items.push(b.x, b.y, '#ff5277');
   for (let i = 0; i < items.length; i += 3) {
@@ -258,7 +263,8 @@ function drawIndicators() {
     ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-7, -8); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.restore();
   }
 }
-function drawHUD() {
+function drawHUD(sim) {
+  const G = sim.G;
   const h = G.human;
   ctx.fillStyle = 'rgba(13,10,31,0.85)'; ctx.fillRect(0, 0, W, 10);
   ctx.fillStyle = '#6ff3e8'; ctx.fillRect(0, 0, W * clamp(h.xp / h.xpNext, 0, 1), 10);
@@ -274,7 +280,7 @@ function drawHUD() {
   ctx.textAlign = 'right'; ctx.fillStyle = '#efe6d2'; ctx.font = '22px ' + FONT_DISP; ctx.fillText(G.kills.toLocaleString() + ' 처치', W - 14, 42);
   if (showDebug) {
     ctx.font = '500 11px ' + FONT_BODY; ctx.fillStyle = '#a59fc4';
-    ctx.fillText(`${fps} FPS  적 ${enemies.live.length}  투사체 ${projs.live.length + ebul.live.length}  (F3)`, W - 14, 60);
+    ctx.fillText(`${fps} FPS  적 ${sim.pools.enemies.live.length}  투사체 ${sim.pools.projs.live.length + sim.pools.ebul.live.length}  (F3)`, W - 14, 60);
   }
   if (h.auto) { ctx.fillStyle = '#ffd166'; ctx.font = '700 12px ' + FONT_BODY; ctx.fillText('자동 조종 중 (F2)', W - 14, 76); }
   // 파티 패널
@@ -327,15 +333,16 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(111,243,232,0.5)'; circle(touch.ox + touch.x * 50, touch.oy + touch.y * 50, 18); ctx.fill();
   }
 }
-export function render() {
+export function render(sim) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#140f2b'; ctx.fillRect(0, 0, W, H);
+  const G = sim.G;
   if (!G) return;
   const sh = G.shake, ox = sh ? rand(-sh, sh) : 0, oy = sh ? rand(-sh, sh) : 0;
   const cx = G.cam.x, cy = G.cam.y;
   VX0 = cx - W / 2; VX1 = cx + W / 2; VY0 = cy - H / 2; VY1 = cy + H / 2;
   ctx.save(); ctx.translate(Math.round(W / 2 - cx + ox), Math.round(H / 2 - cy + oy));
-  drawGround(); drawDrops(); drawAuras(); drawEnemies(); drawPlayers(); drawProjs(); drawEbul(); drawFx();
+  drawGround(); drawDrops(sim); drawAuras(sim); drawEnemies(sim); drawPlayers(sim); drawProjs(sim); drawEbul(sim); drawFx(sim);
   ctx.restore();
-  if (!G.demo) { drawIndicators(); drawHUD(); }
+  if (!G.demo) { drawIndicators(sim); drawHUD(sim); }
 }

@@ -1,12 +1,12 @@
 import { $ } from '../core/utils.js';
 import { WEAPONS, PASSIVES } from '../data/tables.js';
-import { G } from '../game/state.js';
 import { buildHTML } from './shared.js';
 import { finishGame } from './result.js';
+import { sim } from '../main.js';
 
 export function openPause() {
-  G.mode = 'pause';
-  const h = G.human;
+  sim.G.mode = 'pause';
+  const h = sim.G.human;
   $('pBuild').innerHTML = buildHTML(h);
   $('pRecipes').innerHTML = Object.entries(WEAPONS).map(([id, D]) => {
     const w = h.weapons.find(w => w.id === id), hasP = h.passives.some(q => q.id === D.pair);
@@ -16,7 +16,7 @@ export function openPause() {
   $('pause').classList.add('on');
   $('resumeBtn').focus({ preventScroll: true });
 }
-export function closePause() { $('pause').classList.remove('on'); if (G) G.mode = 'play'; }
+export function closePause() { $('pause').classList.remove('on'); if (sim.G) sim.G.mode = 'play'; }
 $('resumeBtn').addEventListener('click', closePause);
-$('pauseBtn').addEventListener('click', () => { if (G && !G.demo && G.mode === 'play') openPause(); });
+$('pauseBtn').addEventListener('click', () => { if (sim.G && !sim.G.demo && sim.G.mode === 'play') openPause(); });
 $('quitBtn').addEventListener('click', () => { $('pause').classList.remove('on'); finishGame(); });

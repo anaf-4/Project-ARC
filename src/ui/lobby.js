@@ -1,8 +1,9 @@
 import { $ } from '../core/utils.js';
 import { CLASSES, WEAPONS, META, metaCost } from '../data/tables.js';
-import { meta, saveMeta } from '../core/meta.js';
+import { saveMeta } from '../core/meta.js';
 import { newGame } from '../game/state.js';
 import { banner } from './banner.js';
+import { sim } from '../main.js';
 
 export const sel = { cls: 'vanguard', party: 1, stage: 900 };
 
@@ -16,12 +17,12 @@ export function renderLobby() {
     </button>`).join('');
   $('partySeg').innerHTML = [1, 2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.party === n}">${n === 1 ? '솔로' : n + '인'}</button>`).join('');
   $('stageSeg').innerHTML = [[360, '퀵 6분'], [900, '표준 15분']].map(([s, l]) => `<button data-s="${s}" aria-pressed="${sel.stage === s}">${l}</button>`).join('');
-  $('shardCount').textContent = meta.shards.toLocaleString();
+  $('shardCount').textContent = sim.meta.shards.toLocaleString();
   $('metaList').innerHTML = META.map(m => {
-    const l = meta.lv[m.id] || 0, maxed = l >= m.max, cost = metaCost(l);
+    const l = sim.meta.lv[m.id] || 0, maxed = l >= m.max, cost = metaCost(l);
     return `<div class="mrow"><span class="mi">${m.icon}</span><div><b>${m.name}</b><span>${m.desc}</span></div>
       <div class="pips">${Array.from({ length: m.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div>
-      <button class="buy" data-m="${m.id}" ${maxed || meta.shards < cost ? 'disabled' : ''}>${maxed ? '완료' : '◆ ' + cost}</button></div>`;
+      <button class="buy" data-m="${m.id}" ${maxed || sim.meta.shards < cost ? 'disabled' : ''}>${maxed ? '완료' : '◆ ' + cost}</button></div>`;
   }).join('');
 }
 $('classGrid').addEventListener('click', e => { const b = e.target.closest('.cls'); if (b) { sel.cls = b.dataset.id; renderLobby(); } });
@@ -29,14 +30,14 @@ $('partySeg').addEventListener('click', e => { const b = e.target.closest('butto
 $('stageSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sel.stage = +b.dataset.s; renderLobby(); } });
 $('metaList').addEventListener('click', e => {
   const b = e.target.closest('.buy'); if (!b || b.disabled) return;
-  const m = META.find(x => x.id === b.dataset.m), l = meta.lv[m.id] || 0, cost = metaCost(l);
-  if (l >= m.max || meta.shards < cost) return;
-  meta.shards -= cost; meta.lv[m.id] = l + 1; saveMeta(); renderLobby();
+  const m = META.find(x => x.id === b.dataset.m), l = sim.meta.lv[m.id] || 0, cost = metaCost(l);
+  if (l >= m.max || sim.meta.shards < cost) return;
+  sim.meta.shards -= cost; sim.meta.lv[m.id] = l + 1; saveMeta(sim.meta); renderLobby();
 });
 $('startBtn').addEventListener('click', startRun);
 export function startRun() {
   $('lobby').classList.remove('on');
-  newGame({ cls: sel.cls, party: sel.party, stage: sel.stage });
+  newGame(sim, { cls: sel.cls, party: sel.party, stage: sel.stage });
   $('pauseBtn').classList.add('on');
   banner('에테르 결정을 모아 성장하세요', 'good');
 }
