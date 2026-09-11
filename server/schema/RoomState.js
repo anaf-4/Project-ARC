@@ -18,7 +18,7 @@
 // annotated classes do NOT auto-instantiate map/array/collection fields —
 // the base Schema constructor only sets up change tracking. RoomState's
 // map fields are therefore initialized explicitly in its constructor.
-import { Schema, MapSchema, type } from '@colyseus/schema';
+import { Schema, MapSchema, type, view } from '@colyseus/schema';
 
 export class PlayerState extends Schema {}
 type('string')(PlayerState.prototype, 'name');
@@ -63,6 +63,18 @@ export class RoomState extends Schema {
 }
 type({ map: PlayerState })(RoomState.prototype, 'players');
 type({ map: EnemyState })(RoomState.prototype, 'enemies');
+// Task 17: `enemies` is per-client filtered via Colyseus StateView (Task 12
+// broadcast every enemy to every client; this narrows it to each player's
+// view radius). `view()` must decorate this field for `isFiltered` to
+// propagate to its MapSchema's ChangeTree (confirmed by reading
+// node_modules/@colyseus/schema/lib/encoder/ChangeTree.js
+// `_checkFilteredByParent`, which only sets `isFiltered` when
+// `Metadata.hasViewTagAtIndex` is true for the field) — without it,
+// `client.view.add()`/`.clear()` calls in GameRoom are silently no-ops and
+// every client still gets every enemy via the unfiltered "shared" changeset.
+// `players` intentionally has no `view()` tag: all players must stay visible
+// to everyone.
+view()(RoomState.prototype, 'enemies');
 type({ map: ProjectileState })(RoomState.prototype, 'projectiles');
 type({ map: DropState })(RoomState.prototype, 'drops');
 type('number')(RoomState.prototype, 'time');

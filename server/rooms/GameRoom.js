@@ -12,6 +12,14 @@
 // (onCreate/onJoin/onLeave/onMessage, this.clients, client.sessionId) matches
 // the brief as-is.
 import { Room } from 'colyseus';
+// Task 17: `StateView` is NOT re-exported by `colyseus`/`@colyseus/core`
+// (checked node_modules/@colyseus/core/build/index.d.ts — no StateView
+// export; only `Transport.d.ts` references its *type*). It lives in
+// `@colyseus/schema` (node_modules/@colyseus/schema/lib/encoder/StateView.d.ts),
+// already a direct dependency (see RoomState.js), so it's imported from there
+// directly instead of the brief's `(await import('colyseus')).StateView`,
+// which would have been `undefined`.
+import { StateView } from '@colyseus/schema';
 import { createSimulation } from '../../src/core/simulation.js';
 import { newGame, makePlayer } from '../../src/game/state.js';
 import { update } from '../../src/game/systems.js';
@@ -48,6 +56,11 @@ export class GameRoom extends Room {
     }
     this.state.players.set(client.sessionId, new PlayerState());
     this.inputs.set(client.sessionId, { x: 0, y: 0 });
+    // `StateView` must be constructed with `iterable: true` — its `clear()`
+    // throws "StateView#clear() is only available for iterable StateView's"
+    // otherwise (node_modules/@colyseus/schema/lib/encoder/StateView.js:246-249),
+    // and syncState() below calls `.clear()` every tick.
+    client.view = new StateView(true);
   }
 
   onLeave(client) {
@@ -78,11 +91,31 @@ export class GameRoom extends Room {
       ps.x = p.x; ps.y = p.y; ps.hp = p.hp; ps.maxHp = p.s.maxHp; ps.level = p.level; ps.dead = p.dead; ps.revive = p.revive; ps.name = p.name; ps.cls = p.cls;
     }
     this.state.enemies.clear();
+    const byUid = new Map();
     for (const e of pools.enemies.live) {
       if (!e.alive) continue;
       const es = new EnemyState();
       es.tid = e.tid; es.x = e.x; es.y = e.y; es.hp = e.hp; es.maxHp = e.maxHp; es.boss = e.boss; es.elite = e.elite;
       this.state.enemies.set(String(e.uid), es);
+      byUid.set(e.uid, es);
+    }
+
+    // Task 17: `enemies` is a `@view()`-tagged field (see RoomState.js), so
+    // it is no longer broadcast to every client by default — each client
+    // only sees the EnemyStates explicitly added to its own `client.view`.
+    // `players` is untagged and stays in the unfiltered shared changeset, so
+    // every player keeps seeing every other player without any view calls.
+    const VIEW_RADIUS = Math.hypot(G.viewW, G.viewH) / 2 + 80;
+    const nearby = [];
+    for (const [sid, p] of this.simPlayers) {
+      const client = this.clients.find(c => c.sessionId === sid);
+      if (!client || !client.view) continue;
+      this.sim.spatial.query(p.x, p.y, VIEW_RADIUS, nearby);
+      client.view.clear();
+      for (const e of nearby) {
+        const es = byUid.get(e.uid);
+        if (es) client.view.add(es);
+      }
     }
   }
 }
