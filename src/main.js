@@ -60,7 +60,7 @@ function frame(now) {
     // before the local session's player syncs into state.players. render()'s
     // drawHUD dereferences G.human unconditionally, so skip the render call
     // entirely on those frames instead of crashing.
-    const netSim = netSimFromState(mpRoom.state, mpRoom.sessionId);
+    const netSim = netSimFromState(mpRoom.state, mpRoom.sessionId, dt);
     if (netSim) {
       netSim.pools.fxs.live = getNetFx();
       if (netSim.G.human) render(netSim);

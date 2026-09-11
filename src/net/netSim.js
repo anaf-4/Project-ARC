@@ -15,19 +15,47 @@ import { CLASSES } from '../data/tables.js';
 // GameRoom put stageLen on RoomState once stage selection is networked.
 const STAGE_LEN = 900;
 
-export function netSimFromState(state, localSessionId) {
+// The server only reports a new position 20 times/sec. Rendering that raw
+// value every client frame (~60/sec) makes everything visibly teleport in
+// small steps every ~50ms — the "choppy" motion players notice even though
+// the actual frame rate is fine. Smooth each entity's rendered position
+// toward its latest known target with a short exponential filter instead of
+// jumping straight to it; SMOOTH_TAU is roughly "time to close ~63% of the
+// gap to a new target", tuned to stay well under one server tick so it
+// never visibly lags behind, just fills in the steps between them.
+const SMOOTH_TAU = 0.08;
+const smoothed = new Map(); // entity id -> {x, y}
+const seenThisFrame = new Set();
+
+function smoothPos(id, targetX, targetY, dt) {
+  seenThisFrame.add(id);
+  let s = smoothed.get(id);
+  if (!s) { s = { x: targetX, y: targetY }; smoothed.set(id, s); return s; }
+  if (dt > 0) {
+    const k = 1 - Math.exp(-dt / SMOOTH_TAU);
+    s.x += (targetX - s.x) * k;
+    s.y += (targetY - s.y) * k;
+  } else {
+    s.x = targetX; s.y = targetY;
+  }
+  return s;
+}
+
+export function netSimFromState(state, localSessionId, dt) {
   // state.players/state.enemies can briefly be undefined right after the
   // room's state object is (re)assigned — e.g. the waiting->playing
   // transition — before Colyseus finishes decoding the new schema onto it.
   // Callers must treat a null return as "nothing to render this frame" and
   // skip, not retry synchronously.
   if (!state || !state.players || !state.enemies) return null;
+  seenThisFrame.clear();
   const players = [];
   let human = null;
   state.players.forEach((p, sid) => {
     const cls = CLASSES[p.cls] ? p.cls : 'vanguard'; // guard render.js's CLASSES[p.cls] lookups
+    const pos = smoothPos('p:' + sid, p.x, p.y, dt);
     const pl = {
-      x: p.x, y: p.y, hp: p.hp, s: { maxHp: p.maxHp }, level: p.level, dead: p.dead, revive: p.revive,
+      x: pos.x, y: pos.y, hp: p.hp, s: { maxHp: p.maxHp }, level: p.level, dead: p.dead, revive: p.revive,
       name: p.name, cls, color: '#6ff3e8', r: 14, fx: 1, fy: 0, hurt: 0, iframe: 0,
       weapons: [], passives: [], xp: 0, xpNext: 1, pending: 0, auto: false,
     };
@@ -35,13 +63,17 @@ export function netSimFromState(state, localSessionId) {
     if (sid === localSessionId) human = pl;
   });
   const enemies = [];
-  state.enemies.forEach((e) => {
+  state.enemies.forEach((e, uid) => {
+    const pos = smoothPos('e:' + uid, e.x, e.y, dt);
     enemies.push({
-      alive: true, tid: e.tid, x: e.x, y: e.y, hp: e.hp, maxHp: e.maxHp, boss: e.boss, elite: e.elite,
+      alive: true, tid: e.tid, x: pos.x, y: pos.y, hp: e.hp, maxHp: e.maxHp, boss: e.boss, elite: e.elite,
       r: e.boss ? 40 : 12, color: '#ff5277', fx: 0, fy: 1, flash: 0, phase: 0,
       name: e.boss ? '보스' : undefined, teleT: 0, tdx: 0, tdy: 0, spin: 0, speed: 0,
     });
   });
+  // Drop smoothing state for anything that despawned/disconnected — otherwise
+  // this map grows forever over a long run.
+  for (const id of smoothed.keys()) if (!seenThisFrame.has(id)) smoothed.delete(id);
   const cam = human ? { x: human.x, y: human.y } : { x: 0, y: 0 };
   // WARN: G.human can be null until localSessionId appears in state.players; render.js:drawHUD dereferences G.human unconditionally — callers must skip render() while null
   return {
