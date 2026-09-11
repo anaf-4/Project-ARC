@@ -16,6 +16,12 @@ import { CLASSES } from '../data/tables.js';
 const STAGE_LEN = 900;
 
 export function netSimFromState(state, localSessionId) {
+  // state.players/state.enemies can briefly be undefined right after the
+  // room's state object is (re)assigned — e.g. the waiting->playing
+  // transition — before Colyseus finishes decoding the new schema onto it.
+  // Callers must treat a null return as "nothing to render this frame" and
+  // skip, not retry synchronously.
+  if (!state || !state.players || !state.enemies) return null;
   const players = [];
   let human = null;
   state.players.forEach((p, sid) => {

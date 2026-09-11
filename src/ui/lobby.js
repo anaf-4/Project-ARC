@@ -5,6 +5,7 @@ import { newGame } from '../game/state.js';
 import { banner } from './banner.js';
 import { sim, startMultiplayer } from '../main.js';
 import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame } from '../net/connection.js';
+import { pushFx } from '../net/netFx.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -107,6 +108,11 @@ $('classPickConfirmBtn').addEventListener('click', async () => {
 
 // ---------------- 대기실 ----------------
 function wireRoom(room) {
+  // Register as soon as the room connects, well before gameplay starts —
+  // registering this later (e.g. only once phase flips to 'playing') risks
+  // missing the first 'fx' broadcasts that land in the same tick as the
+  // phase transition itself.
+  room.onMessage('fx', pushFx);
   room.onStateChange(() => {
     if (!mp) return;
     // Always read room.state live (it's a getter) rather than a captured

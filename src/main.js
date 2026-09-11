@@ -13,7 +13,7 @@ import { W, H } from './core/canvas.js';
 import { $ } from './core/utils.js';
 import { netSimFromState } from './net/netSim.js';
 import { sendMove } from './net/connection.js';
-import { pushFx, updateNetFx, getNetFx } from './net/netFx.js';
+import { updateNetFx, getNetFx } from './net/netFx.js';
 
 export const sim = createSimulation();
 sim.onBanner = banner;
@@ -25,7 +25,6 @@ let mpRoom = null;
 
 export function startMultiplayer(room) {
   mpRoom = room;
-  room.onMessage('fx', pushFx);
   // 공유 세션이라 개인 일시정지가 없음 — 정지 버튼을 숨긴다
   $('pauseBtn')?.classList.remove('on');
 }
@@ -56,13 +55,16 @@ function frame(now) {
   if (mpRoom) {
     mpInputLoop(dt);
     updateNetFx(dt);
-    // netSimFromState's G.human can be null for a frame or two right after
-    // connecting, before the local session's player syncs into
-    // state.players. render()'s drawHUD dereferences G.human unconditionally,
-    // so skip the render call entirely on those frames instead of crashing.
+    // netSimFromState returns null while state.players/state.enemies aren't
+    // decoded yet, and G.human can be null for a frame or two after that,
+    // before the local session's player syncs into state.players. render()'s
+    // drawHUD dereferences G.human unconditionally, so skip the render call
+    // entirely on those frames instead of crashing.
     const netSim = netSimFromState(mpRoom.state, mpRoom.sessionId);
-    netSim.pools.fxs.live = getNetFx();
-    if (netSim.G.human) render(netSim);
+    if (netSim) {
+      netSim.pools.fxs.live = getNetFx();
+      if (netSim.G.human) render(netSim);
+    }
     return;
   }
   if (sim.G) { sim.G.viewW = W; sim.G.viewH = H; }
