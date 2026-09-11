@@ -3,9 +3,10 @@ import { CLASSES, WEAPONS, META, metaCost } from '../data/tables.js';
 import { saveMeta } from '../core/meta.js';
 import { newGame } from '../game/state.js';
 import { banner } from './banner.js';
-import { sim, startMultiplayer } from '../main.js';
-import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame } from '../net/connection.js';
+import { sim, startMultiplayer, clearMultiplayerRoom } from '../main.js';
+import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame, chooseLevelUp } from '../net/connection.js';
 import { pushFx } from '../net/netFx.js';
+import { showMpLevelUp } from './levelup.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -20,6 +21,12 @@ function showScreen(name) {
   for (const s of SCREENS) $(s).hidden = s !== name;
   $('backBtn').hidden = name === 'screenMenu' || name === 'screenWaiting';
 }
+// Called from main.js's leaveMultiplayer(): the lobby's screen state is
+// otherwise never reset when a multiplayer run ends, because starting the
+// game hides the whole #lobby element without ever calling showScreen() —
+// so without this, returning here would show whatever screen (e.g. the
+// stale pre-game waiting room) was last visible before gameplay started.
+export function resetToMenu() { showScreen('screenMenu'); }
 
 export function renderLobby() {
   $('classGrid').innerHTML = Object.entries(CLASSES).map(([id, c]) => `
@@ -113,6 +120,15 @@ function wireRoom(room) {
   // missing the first 'fx' broadcasts that land in the same tick as the
   // phase transition itself.
   room.onMessage('fx', pushFx);
+  room.onMessage('levelup', (msg) => {
+    const ps = room.state.players.get(room.sessionId);
+    if (!ps) return;
+    const p = {
+      weapons: ps.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo })),
+      passives: ps.passives.map(q => ({ id: q.id, lv: q.lv })),
+    };
+    showMpLevelUp(msg.options, p, (index) => chooseLevelUp(room, index));
+  });
   room.onStateChange(() => {
     if (!mp) return;
     // Always read room.state live (it's a getter) rather than a captured
@@ -128,7 +144,13 @@ function wireRoom(room) {
     renderWaitingRoom();
   });
   room.onLeave(() => {
-    if (mp) { mp = null; banner('방 연결이 끊어졌습니다', 'danger'); showScreen('screenMenu'); }
+    if (mp) { mp = null; banner('방 연결이 끊어졌습니다', 'danger'); showScreen('screenMenu'); return; }
+    // Disconnected mid-gameplay (mp was already cleared when phase flipped
+    // to 'playing') — main.js's mpRoom still points at this now-dead room
+    // otherwise, leaving the client stuck rendering a frozen last frame
+    // with no way back to the menu. Only clears the reference; doesn't call
+    // .leave() again (the room already closed — that's why this fired).
+    if (clearMultiplayerRoom()) { banner('방 연결이 끊어졌습니다', 'danger'); resetToMenu(); $('lobby').classList.add('on'); }
   });
 }
 

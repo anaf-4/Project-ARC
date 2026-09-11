@@ -23,7 +23,8 @@ import { StateView } from '@colyseus/schema';
 import { createSimulation } from '../../src/core/simulation.js';
 import { newGame, makePlayer } from '../../src/game/state.js';
 import { update } from '../../src/game/systems.js';
-import { RoomState, PlayerState, EnemyState } from '../schema/RoomState.js';
+import { getOptions, applyOption } from '../../src/game/growth.js';
+import { RoomState, PlayerState, EnemyState, WeaponState, PassiveState } from '../schema/RoomState.js';
 
 const TICK_HZ = 20;
 const TICK_DT = 1 / TICK_HZ;
@@ -51,10 +52,37 @@ export class GameRoom extends Room {
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
     this.enemyStates = new Map(); // sim enemy uid (string) -> EnemyState, reused across ticks
+    this.levelUpOffers = new Map(); // sessionId -> the 3 options currently offered, awaiting a choice
     this.maxClients = MAX_PLAYERS_CAP;
+
+    // Solo pauses the whole sim while its one human chooses (game/systems.js's
+    // G.mode gate). A shared co-op tick can't pause for one player, so each
+    // player who levels up gets their own offer sent only to them; update()
+    // keeps running for everyone else in the meantime (see systems.js's
+    // awaitingLevelUp guard).
+    this.sim.onLevelUp = (p) => {
+      const sid = [...this.simPlayers].find(([, sp]) => sp === p)?.[0];
+      const client = sid && this.clients.find(c => c.sessionId === sid);
+      if (!client) return;
+      const options = getOptions(p, 3);
+      this.levelUpOffers.set(sid, options);
+      client.send('levelup', { options });
+    };
 
     this.onMessage('move', (client, msg) => {
       this.inputs.set(client.sessionId, { x: Number(msg.x) || 0, y: Number(msg.y) || 0 });
+    });
+
+    this.onMessage('chooseLevelUp', (client, msg) => {
+      const p = this.simPlayers.get(client.sessionId);
+      const offers = this.levelUpOffers.get(client.sessionId);
+      if (!p || !offers) return;
+      const idx = Number(msg.index);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= offers.length) return;
+      applyOption(this.sim, p, offers[idx]);
+      p.pending--;
+      p.awaitingLevelUp = false;
+      this.levelUpOffers.delete(client.sessionId);
     });
 
     this.onMessage('setMaxPlayers', (client, msg) => {
@@ -106,6 +134,7 @@ export class GameRoom extends Room {
     this.simPlayers.delete(client.sessionId);
     this.inputs.delete(client.sessionId);
     this.pending.delete(client.sessionId);
+    this.levelUpOffers.delete(client.sessionId);
     this.state.players.delete(client.sessionId);
     if (this.state.hostSessionId === client.sessionId) {
       const next = this.clients.find(c => c.sessionId !== client.sessionId);
@@ -150,6 +179,20 @@ export class GameRoom extends Room {
       const ps = this.state.players.get(sid);
       if (!ps) continue;
       ps.x = p.x; ps.y = p.y; ps.hp = p.hp; ps.maxHp = p.s.maxHp; ps.level = p.level; ps.dead = p.dead; ps.revive = p.revive; ps.name = p.name; ps.cls = p.cls;
+      ps.xp = p.xp; ps.xpNext = p.xpNext; ps.pending = p.pending;
+      // Small, bounded (≤4 each) and only actually changes on level-up, so a
+      // full clear+rebuild every tick isn't the anti-pattern it was for
+      // enemies (hundreds of entities, every tick, regardless of change).
+      ps.weapons.clear();
+      for (const w of p.weapons) {
+        const ws = new WeaponState(); ws.id = w.id; ws.lv = w.lv; ws.evo = w.evo;
+        ps.weapons.push(ws);
+      }
+      ps.passives.clear();
+      for (const q of p.passives) {
+        const qs = new PassiveState(); qs.id = q.id; qs.lv = q.lv;
+        ps.passives.push(qs);
+      }
     }
     // Reuse EnemyState instances by uid across ticks instead of clearing and
     // recreating every entity every tick — that anti-pattern defeats

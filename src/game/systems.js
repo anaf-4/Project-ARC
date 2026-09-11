@@ -245,5 +245,21 @@ export function update(sim, dt, input = noInput) {
   G.shake = Math.max(0, G.shake - dt * 20);
   if (G.ending > 0) { G.ending -= dt; if (G.ending <= 0) sim.onGameOver?.(); }
   else if (!G.won && G.players.every(p => p.dead)) { G.ending = 1.6; if (!G.demo) sim.onBanner?.('파티 전멸', 'danger'); }
-  if (!G.demo && G.mode === 'play' && G.ending <= 0 && h.pending > 0 && !h.dead) sim.onLevelUp?.();
+  // Only non-auto (real, human-controlled) players ever accumulate pending
+  // level-ups — bots resolve instantly inside gainXp(). awaitingLevelUp
+  // guards against re-firing onLevelUp every tick while a choice is still
+  // outstanding: solo doesn't strictly need it (openLevelUp() sets
+  // G.mode='levelup', and main.js only calls update() while mode==='play',
+  // so this loop naturally stops running until resolved), but multiplayer
+  // has no such pause — the shared server tick never stops for one
+  // player's choice — so the flag is the only thing preventing a message
+  // flood there. ui/levelup.js and GameRoom's chooseLevelUp handler both
+  // clear it when a choice is applied.
+  if (!G.demo && G.ending <= 0) {
+    for (const p of G.players) {
+      if (p.auto || p.dead || p.pending <= 0 || p.awaitingLevelUp) continue;
+      p.awaitingLevelUp = true;
+      sim.onLevelUp?.(p);
+    }
+  }
 }

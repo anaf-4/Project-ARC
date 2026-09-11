@@ -3,7 +3,7 @@ import { createSimulation } from './core/simulation.js';
 import { startDemo } from './game/state.js';
 import { update } from './game/systems.js';
 import { render, tickFps } from './render/render.js';
-import { renderLobby } from './ui/lobby.js';
+import { renderLobby, resetToMenu } from './ui/lobby.js';
 import { loadMeta } from './core/meta.js';
 import { banner } from './ui/banner.js';
 import { openLevelUp } from './ui/levelup.js';
@@ -21,12 +21,31 @@ sim.onLevelUp = openLevelUp;
 sim.onGameOver = finishGame;
 
 // ---------------- 멀티플레이어 ----------------
-let mpRoom = null;
+export let mpRoom = null;
 
 export function startMultiplayer(room) {
   mpRoom = room;
   // 공유 세션이라 개인 일시정지가 없음 — 정지 버튼을 숨긴다
   $('pauseBtn')?.classList.remove('on');
+}
+// Called from game/input.js when the player leaves via the multiplayer
+// pause overlay's "방 나가기" button.
+export function leaveMultiplayer() {
+  if (mpRoom) { mpRoom.leave(); mpRoom = null; }
+  renderLobby();
+  resetToMenu();
+  $('lobby').classList.add('on');
+}
+// Called from ui/lobby.js's room.onLeave when the connection drops mid-
+// gameplay (not via the user-initiated leaveMultiplayer() above, which
+// already handles its own cleanup) — just clears the dead reference so the
+// frame loop stops trying to render it. Returns whether there was
+// anything to clear, so the caller knows whether this fired for the room
+// it's currently tracking.
+export function clearMultiplayerRoom() {
+  if (!mpRoom) return false;
+  mpRoom = null;
+  return true;
 }
 
 // 서버 틱(20Hz)보다 자주 보내봐야 의미가 없으므로 입력 전송도 같은 주기로 제한

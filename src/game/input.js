@@ -1,6 +1,6 @@
 import { $ } from '../core/utils.js';
-import { sim } from '../main.js';
-import { openPause, closePause } from '../ui/pause.js';
+import { sim, mpRoom, leaveMultiplayer } from '../main.js';
+import { openPause, closePause, openMpPause } from '../ui/pause.js';
 import { curOpts, chooseOption, doReroll } from '../ui/levelup.js';
 import { banner } from '../ui/banner.js';
 import { toggleDebug } from '../render/render.js';
@@ -8,8 +8,32 @@ import { toggleDebug } from '../render/render.js';
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
 
+function toggleMpPause() {
+  // Read the modal's actual visibility instead of tracking a separate flag —
+  // resuming via the "계속하기" button (ui/pause.js's own click handler)
+  // calls closePause() directly, which would desync a flag kept only here.
+  if ($('pause').classList.contains('on')) { closePause(); return; }
+  const ps = mpRoom.state.players.get(mpRoom.sessionId);
+  if (!ps) return;
+  const p = {
+    weapons: ps.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo })),
+    passives: ps.passives.map(q => ({ id: q.id, lv: q.lv })),
+  };
+  openMpPause(p, leaveMultiplayer);
+}
+
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
+  if (mpRoom) {
+    // Multiplayer doesn't use sim.G at all (that's the untouched solo
+    // state) — pause here is a local-only "check my build" overlay that
+    // never stops the shared server simulation (see ui/pause.js), and the
+    // other solo-only shortcuts below (auto-pilot, level-up digit picks
+    // tied to sim.G.mode) don't apply to a networked run.
+    if (e.code === 'Escape' || e.code === 'KeyP') toggleMpPause();
+    if (e.code === 'F3') { e.preventDefault(); toggleDebug(); }
+    return;
+  }
   if (!sim.G || sim.G.demo) return;
   if (e.code === 'Escape' || e.code === 'KeyP') {
     if (sim.G.mode === 'play') openPause(); else if (sim.G.mode === 'pause') closePause();

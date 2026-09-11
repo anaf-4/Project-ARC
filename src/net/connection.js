@@ -25,3 +25,6 @@ export function setMaxPlayers(room, max) {
 export function startGame(room) {
   room.send('startGame');
 }
+export function chooseLevelUp(room, index) {
+  room.send('chooseLevelUp', { index });
+}

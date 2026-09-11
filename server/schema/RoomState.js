@@ -18,9 +18,24 @@
 // annotated classes do NOT auto-instantiate map/array/collection fields —
 // the base Schema constructor only sets up change tracking. RoomState's
 // map fields are therefore initialized explicitly in its constructor.
-import { Schema, MapSchema, type, view } from '@colyseus/schema';
+import { Schema, MapSchema, ArraySchema, type, view } from '@colyseus/schema';
 
-export class PlayerState extends Schema {}
+export class WeaponState extends Schema {}
+type('string')(WeaponState.prototype, 'id');
+type('number')(WeaponState.prototype, 'lv');
+type('boolean')(WeaponState.prototype, 'evo');
+
+export class PassiveState extends Schema {}
+type('string')(PassiveState.prototype, 'id');
+type('number')(PassiveState.prototype, 'lv');
+
+export class PlayerState extends Schema {
+  constructor() {
+    super();
+    this.weapons = new ArraySchema();
+    this.passives = new ArraySchema();
+  }
+}
 type('string')(PlayerState.prototype, 'name');
 type('string')(PlayerState.prototype, 'cls');
 type('number')(PlayerState.prototype, 'x');
@@ -30,6 +45,11 @@ type('number')(PlayerState.prototype, 'maxHp');
 type('number')(PlayerState.prototype, 'level');
 type('boolean')(PlayerState.prototype, 'dead');
 type('number')(PlayerState.prototype, 'revive');
+type('number')(PlayerState.prototype, 'xp');
+type('number')(PlayerState.prototype, 'xpNext');
+type('number')(PlayerState.prototype, 'pending');
+type([WeaponState])(PlayerState.prototype, 'weapons');
+type([PassiveState])(PlayerState.prototype, 'passives');
 
 export class EnemyState extends Schema {}
 type('string')(EnemyState.prototype, 'tid');

@@ -4,10 +4,12 @@
 // multiplayer. Called once per client render frame; cheap map->array copy,
 // not a simulation step.
 //
-// RoomState today carries players + enemies only (no weapons/passives/
-// projectiles/drops state yet — Task 11's schema doesn't track them), so
-// those render as empty. That's a deliberate, documented gap (see task-15
-// brief), not something this adapter should paper over.
+// RoomState carries players (incl. weapons/passives/xp) and enemies.
+// Projectiles/drops still aren't tracked as network state — that's a
+// deliberate, documented gap (see task-15 brief: they're purely cosmetic
+// and short-lived; see also src/net/netFx.js, which plays weapon-fire
+// visuals back from one-shot 'fx' broadcasts instead), not something this
+// adapter should paper over.
 import { CLASSES } from '../data/tables.js';
 
 // ponytail: RoomState doesn't sync a stage length yet; 900s matches the
@@ -23,7 +25,7 @@ const STAGE_LEN = 900;
 // jumping straight to it; SMOOTH_TAU is roughly "time to close ~63% of the
 // gap to a new target", tuned to stay well under one server tick so it
 // never visibly lags behind, just fills in the steps between them.
-const SMOOTH_TAU = 0.08;
+const SMOOTH_TAU = 0.05;
 const smoothed = new Map(); // entity id -> {x, y}
 const seenThisFrame = new Set();
 
@@ -57,7 +59,9 @@ export function netSimFromState(state, localSessionId, dt) {
     const pl = {
       x: pos.x, y: pos.y, hp: p.hp, s: { maxHp: p.maxHp }, level: p.level, dead: p.dead, revive: p.revive,
       name: p.name, cls, color: '#6ff3e8', r: 14, fx: 1, fy: 0, hurt: 0, iframe: 0,
-      weapons: [], passives: [], xp: 0, xpNext: 1, pending: 0, auto: false,
+      weapons: p.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo, ang: 0 })),
+      passives: p.passives.map(q => ({ id: q.id, lv: q.lv })),
+      xp: p.xp, xpNext: p.xpNext || 1, pending: p.pending, auto: false,
     };
     players.push(pl);
     if (sid === localSessionId) human = pl;
