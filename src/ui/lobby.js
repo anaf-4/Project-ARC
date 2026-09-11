@@ -4,6 +4,10 @@ import { saveMeta } from '../core/meta.js';
 import { newGame } from '../game/state.js';
 import { banner } from './banner.js';
 import { sim } from '../main.js';
+import { connect } from '../net/connection.js';
+import { startMultiplayer } from '../main.js';
+
+const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
 export const sel = { cls: 'vanguard', party: 1, stage: 900 };
 
@@ -41,3 +45,15 @@ export function startRun() {
   $('pauseBtn').classList.add('on');
   banner('에테르 결정을 모아 성장하세요', 'good');
 }
+
+$('coopBtn').addEventListener('click', async () => {
+  $('coopBtn').disabled = true; $('coopBtn').textContent = '접속 중...';
+  try {
+    const { room, state } = await connect(SERVER_URL, sel.cls, 'Player');
+    $('lobby').classList.remove('on');
+    startMultiplayer(room, state);
+  } catch (err) {
+    banner('접속 실패: ' + err.message, 'danger');
+    $('coopBtn').disabled = false; $('coopBtn').textContent = '온라인 협동 접속';
+  }
+});
