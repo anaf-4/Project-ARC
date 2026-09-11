@@ -36,6 +36,7 @@ export class GameRoom extends Room {
     this.inputs = new Map(); // sessionId -> {x, y}
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
+    this.enemyStates = new Map(); // sim enemy uid (string) -> EnemyState, reused across ticks
     this.maxClients = MAX_PLAYERS_CAP;
 
     this.onMessage('move', (client, msg) => {
@@ -136,14 +137,34 @@ export class GameRoom extends Room {
       if (!ps) continue;
       ps.x = p.x; ps.y = p.y; ps.hp = p.hp; ps.maxHp = p.s.maxHp; ps.level = p.level; ps.dead = p.dead; ps.revive = p.revive; ps.name = p.name; ps.cls = p.cls;
     }
-    this.state.enemies.clear();
-    const byUid = new Map();
+    // Reuse EnemyState instances by uid across ticks instead of clearing and
+    // recreating every entity every tick — that anti-pattern defeats
+    // Colyseus's schema diffing (every enemy looks "changed" every tick even
+    // when only a few actually moved), forcing a full re-encode of the whole
+    // enemy set 20 times/sec, which gets worse the more enemies are alive
+    // (this was the actual cause of reported lag + seemingly-no combat: with
+    // nothing ever appearing to die client-side while bandwidth cost grew,
+    // it read as "not attacking", when the sim was killing enemies fine).
+    // Mutate existing instances in place; only add/remove entries when an
+    // enemy actually spawns or dies.
+    const seen = new Set();
     for (const e of pools.enemies.live) {
       if (!e.alive) continue;
-      const es = new EnemyState();
+      const uid = String(e.uid);
+      seen.add(uid);
+      let es = this.enemyStates.get(uid);
+      if (!es) {
+        es = new EnemyState();
+        this.enemyStates.set(uid, es);
+        this.state.enemies.set(uid, es);
+      }
       es.tid = e.tid; es.x = e.x; es.y = e.y; es.hp = e.hp; es.maxHp = e.maxHp; es.boss = e.boss; es.elite = e.elite;
-      this.state.enemies.set(String(e.uid), es);
-      byUid.set(e.uid, es);
+    }
+    for (const uid of this.enemyStates.keys()) {
+      if (!seen.has(uid)) {
+        this.enemyStates.delete(uid);
+        this.state.enemies.delete(uid);
+      }
     }
 
     // Task 17: `enemies` is a `@view()`-tagged field (see RoomState.js), so
@@ -159,7 +180,7 @@ export class GameRoom extends Room {
       this.sim.spatial.query(p.x, p.y, VIEW_RADIUS, nearby);
       client.view.clear();
       for (const e of nearby) {
-        const es = byUid.get(e.uid);
+        const es = this.enemyStates.get(String(e.uid));
         if (es) client.view.add(es);
       }
     }
