@@ -59,6 +59,11 @@ export function fireEbul(sim, x, y, dx, dy, speed, r, dmg) {
 export function addFx(sim, kind, x, y, o) {
   const f = sim.pools.fxs.get(); f.kind = kind; f.x = x; f.y = y; f.t = 0; f.life = o.life || 0.3; f.r = o.r || 0; f.a = o.a || 0;
   f.half = o.half || 0; f.w = o.w || 0; f.color = o.color || '#fff'; f.owner = o.owner || null; f.pts = o.pts || null;
+  // Lets the multiplayer server rebroadcast one-shot visual effects to
+  // clients (attack swings, hit sparks, etc.) without syncing the fx pool
+  // as persistent network state — see server/rooms/GameRoom.js. No-op on
+  // the client/solo path where sim.onFx is never set.
+  sim.onFx?.(kind, x, y, o);
 }
 export function addText(sim, x, y, v, crit) { const t = sim.pools.texts.get(); t.x = x; t.y = y; t.v = Math.round(v); t.crit = crit; t.t = 0; }
 export function jag(pts) {

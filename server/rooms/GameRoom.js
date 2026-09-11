@@ -33,6 +33,20 @@ export class GameRoom extends Room {
   onCreate() {
     this.state = new RoomState();
     this.sim = createSimulation();
+    // Rebroadcast one-shot visual effects (weapon swings, hit sparks, boss
+    // dash trails, ...) as fire-and-forget messages instead of syncing the
+    // fx pool as persistent network state — these are purely cosmetic and
+    // usually live <0.5s, so there's nothing worth diffing. `o.owner` (a
+    // full sim player object) isn't serializable/needed on the client, so
+    // it's collapsed to a plain (ox, oy) position snapshot at broadcast time.
+    this.sim.onFx = (kind, x, y, o) => {
+      this.broadcast('fx', {
+        kind, x, y,
+        life: o.life ?? null, r: o.r ?? null, a: o.a ?? null, half: o.half ?? null, w: o.w ?? null,
+        color: o.color ?? null, pts: o.pts ?? null,
+        ox: o.owner ? o.owner.x : null, oy: o.owner ? o.owner.y : null,
+      });
+    };
     this.inputs = new Map(); // sessionId -> {x, y}
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time

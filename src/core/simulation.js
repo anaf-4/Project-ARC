@@ -11,5 +11,5 @@ export function createSimulation() {
     texts: new Pool(() => ({ alive: false }), 200),
   };
   const spatial = createSpatialHash(pools.enemies);
-  return { pools, spatial, G: null, meta: { shards: 0, lv: {} }, onBanner: null };
+  return { pools, spatial, G: null, meta: { shards: 0, lv: {} }, onBanner: null, onFx: null };
 }
