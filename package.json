@@ -20,6 +20,7 @@
   "build": {
     "appId": "com.projectarc.game",
     "productName": "Project ARC",
+    "npmRebuild": false,
     "files": [
       "dist/**/*",
       "electron/**/*"
