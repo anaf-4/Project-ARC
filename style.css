@@ -44,6 +44,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 .buy:disabled{opacity:.35;cursor:not-allowed}
 .cta{margin-top:30px;font-family:var(--display);font-size:28px;background:var(--ember);color:#1f0e04;border:0;border-radius:6px;padding:14px 52px;box-shadow:0 6px 0 #a94b14}
 .cta:active{transform:translateY(3px);box-shadow:0 3px 0 #a94b14}
+.cta.violet{background:var(--violet);color:#1a1233;box-shadow:0 6px 0 #5a3fb8}
+.cta.violet:active{box-shadow:0 3px 0 #5a3fb8}
+.modechoice{display:flex;flex-wrap:wrap;gap:12px}
+.modechoice .cta{flex:1 1 160px;margin-top:0;white-space:nowrap;padding:14px 20px;text-align:center}
 .keys{margin-top:16px;font-size:13px;color:var(--mute);line-height:1.7}
 .keys kbd{font-family:var(--body);font-size:12px;border:1px solid rgba(239,230,210,.25);border-bottom-width:2px;border-radius:4px;padding:1px 6px;color:var(--bone)}
 
@@ -98,6 +102,8 @@ button{font:inherit;color:inherit;cursor:pointer}
   .choices{grid-template-columns:1fr}
   .card{min-height:0}
   .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .modechoice{flex-direction:column}
+  .modechoice .cta{white-space:normal}
 }
 @media (prefers-reduced-motion:reduce){
   #banner{transition:none}.card:hover{transform:none}

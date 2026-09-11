@@ -20,10 +20,10 @@ sim.onLevelUp = openLevelUp;
 sim.onGameOver = finishGame;
 
 // ---------------- 멀티플레이어 ----------------
-let mpRoom = null, mpState = null;
+let mpRoom = null;
 
-export function startMultiplayer(room, state) {
-  mpRoom = room; mpState = state;
+export function startMultiplayer(room) {
+  mpRoom = room;
   // 공유 세션이라 개인 일시정지가 없음 — 정지 버튼을 숨긴다
   $('pauseBtn')?.classList.remove('on');
 }
@@ -51,7 +51,7 @@ function frame(now) {
     // connecting, before the local session's player syncs into
     // state.players. render()'s drawHUD dereferences G.human unconditionally,
     // so skip the render call entirely on those frames instead of crashing.
-    const netSim = netSimFromState(mpState, mpRoom.sessionId);
+    const netSim = netSimFromState(mpRoom.state, mpRoom.sessionId);
     if (netSim.G.human) render(netSim);
     return;
   }

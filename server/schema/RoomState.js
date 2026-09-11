@@ -59,8 +59,14 @@ export class RoomState extends Schema {
     this.drops = new MapSchema();
     this.time = 0;
     this.kills = 0;
+    this.phase = 'waiting';
+    this.hostSessionId = '';
+    this.maxPlayers = 4;
   }
 }
+type('string')(RoomState.prototype, 'phase');
+type('string')(RoomState.prototype, 'hostSessionId');
+type('number')(RoomState.prototype, 'maxPlayers');
 type({ map: PlayerState })(RoomState.prototype, 'players');
 type({ map: EnemyState })(RoomState.prototype, 'enemies');
 // Task 17: `enemies` is per-client filtered via Colyseus StateView (Task 12
