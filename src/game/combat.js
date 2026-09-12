@@ -5,6 +5,7 @@ export function damage(sim, e, amt, p, kx, ky, noCrit) {
   let crit = false;
   if (p && !noCrit && Math.random() < p.s.crit) { amt *= 2; crit = true; }
   e.hp -= amt; e.flash = 0.08;
+  sim.onHit?.('hit', e.x, e.y);
   const kb = e.boss ? 0.05 : e.elite ? 0.3 : 1;
   e.kx += (kx || 0) * kb; e.ky += (ky || 0) * kb;
   if (sim.pools.texts.live.length < 150) addText(sim, e.x + rand(-6, 6), e.y - e.r, amt, crit);
@@ -29,6 +30,7 @@ export function hurtPlayer(sim, p, dmg) {
   if (p.dead || p.iframe > 0) return;
   dmg = Math.max(1, dmg - p.s.armor);
   p.hp -= dmg; p.iframe = 0.5; p.hurt = 0.16;
+  sim.onHit?.('hurt', p.x, p.y);
   if (p === G.human && !G.demo && !REDUCED) G.shake = Math.max(G.shake, 3);
   if (p.hp <= 0) {
     p.hp = 0; p.dead = true; p.revive = 0; p.mx = p.my = 0;

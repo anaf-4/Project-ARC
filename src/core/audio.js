@@ -1,0 +1,83 @@
+// Small procedural (no asset files) sound system, browser-only — never
+// imported by game/systems.js or game/combat.js directly, since those run
+// on the Node.js multiplayer server too (see sim.onHit in main.js /
+// server/rooms/GameRoom.js for how hit sounds reach here without leaking a
+// browser API into the shared sim core, mirroring the existing sim.onFx
+// pattern for visual effects).
+let ctx = null, masterGain = null, musicGain = null, sfxGain = null, musicNodes = null;
+
+function ensureCtx() {
+  if (ctx) return ctx;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = ctx.createGain();
+  musicGain = ctx.createGain();
+  sfxGain = ctx.createGain();
+  musicGain.connect(masterGain); sfxGain.connect(masterGain); masterGain.connect(ctx.destination);
+  return ctx;
+}
+
+// Call from a user-gesture handler (autoplay policy) with the current
+// settings.vol — see main.js's startAudioOnce().
+export function initAudio(vol) {
+  ensureCtx();
+  if (ctx.state === 'suspended') ctx.resume();
+  setMasterVolume(vol.master); setMusicVolume(vol.music); setSfxVolume(vol.sfx);
+}
+export function setMasterVolume(v) { if (masterGain) masterGain.gain.value = v; }
+export function setMusicVolume(v) { if (musicGain) musicGain.gain.value = v; }
+export function setSfxVolume(v) { if (sfxGain) sfxGain.gain.value = v; }
+
+// Short synthesized impact blip — no sample needed, just a pitch-dropping
+// square wave with a fast decay envelope.
+export function playHit() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.setValueAtTime(180, t);
+  osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+  gain.gain.setValueAtTime(0.5, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+  osc.connect(gain); gain.connect(sfxGain);
+  osc.start(t); osc.stop(t + 0.1);
+}
+// Lower, longer thud for the local/party players getting hit — distinct
+// from playHit() so the two are tellable apart by ear.
+export function playHurt() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const osc = ctx.createOscillator(), gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(90, t);
+  osc.frequency.exponentialRampToValueAtTime(40, t + 0.18);
+  gain.gain.setValueAtTime(0.4, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  osc.connect(gain); gain.connect(sfxGain);
+  osc.start(t); osc.stop(t + 0.22);
+}
+
+// Ambient placeholder "music" — a soft sustained drone (no composed track
+// exists), built from a few detuned oscillators each with its own slow LFO
+// on detune so the chord breathes instead of sitting perfectly static.
+export function startMusic() {
+  if (!ctx || musicNodes) return;
+  const notes = [110, 130.81, 164.81, 196]; // A2 C3 E3 G3
+  musicNodes = notes.map((f, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = i % 2 ? 'sine' : 'triangle';
+    o.frequency.value = f;
+    g.gain.value = 0.06;
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.frequency.value = 0.05 + i * 0.02;
+    lfoGain.gain.value = 4;
+    lfo.connect(lfoGain); lfoGain.connect(o.detune);
+    o.connect(g); g.connect(musicGain);
+    o.start(); lfo.start();
+    return { o, lfo };
+  });
+}
+export function stopMusic() {
+  if (!musicNodes) return;
+  for (const n of musicNodes) { try { n.o.stop(); n.lfo.stop(); } catch (e) { /* already stopped */ } }
+  musicNodes = null;
+}

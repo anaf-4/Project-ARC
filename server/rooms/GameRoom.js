@@ -48,6 +48,12 @@ export class GameRoom extends Room {
         ox: o.owner ? o.owner.x : null, oy: o.owner ? o.owner.y : null,
       });
     };
+    // Hit sounds: don't broadcast one message per damage() call — an AOE
+    // weapon can hit a dozen enemies in a single tick, and that's still just
+    // one moment of "combat happened" worth of audio feedback. Coalesce into
+    // at most one 'hit' and one 'hurt' message per tick instead (see tick()).
+    this.hitFlags = { hit: false, hurt: false };
+    this.sim.onHit = (kind) => { this.hitFlags[kind] = true; };
     this.inputs = new Map(); // sessionId -> {x, y}
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
@@ -179,6 +185,9 @@ export class GameRoom extends Room {
       return { x: 0, y: 0 };
     };
     update(this.sim, TICK_DT, input);
+    if (this.hitFlags.hit) this.broadcast('hit', { kind: 'hit' });
+    if (this.hitFlags.hurt) this.broadcast('hit', { kind: 'hurt' });
+    this.hitFlags.hit = false; this.hitFlags.hurt = false;
     this.syncState();
   }
 

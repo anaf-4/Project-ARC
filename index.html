@@ -24,6 +24,7 @@
         <button class="cta" id="soloModeBtn">싱글플레이</button>
         <button class="cta violet" id="multiModeBtn">멀티플레이</button>
       </div>
+      <button class="ghost" id="settingsBtn" style="margin-top:14px">설정</button>
     </div>
 
     <div id="screenMultiChoice" hidden>
@@ -76,7 +77,7 @@
       <p class="opthint" id="waitingHint">호스트가 게임을 시작하기를 기다리는 중...</p>
     </div>
 
-    <p class="keys"><kbd>WASD</kbd> 또는 방향키로 이동, 공격은 자동입니다. <kbd>Esc</kbd> 일시정지, <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 강화 선택, <kbd>F2</kbd> 자동 조종(테스트용). 모바일은 화면을 끌어서 이동합니다.</p>
+    <p class="keys"><kbd>WASD</kbd> 또는 방향키로 이동, 공격은 자동입니다. <kbd>Esc</kbd> 일시정지, <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 강화 선택, <kbd>F2</kbd> 자동 조종(테스트용). 모바일은 화면을 끌어서 이동합니다. 기본 키는 설정에서 바꿀 수 있습니다.</p>
   </div>
 </div>
 
@@ -108,6 +109,31 @@
     <div class="panel"><div class="stats" id="rStats"></div></div>
     <div class="panel"><h3>최종 빌드</h3><div class="build" id="rBuild"></div></div>
     <div class="btnrow"><button class="cta" id="toLobbyBtn">로비로 돌아가기</button></div>
+  </div>
+</div>
+
+<div id="settings" class="modal" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+  <div class="box" style="width:min(560px,100%)">
+    <div class="mtitle" id="stTitle" style="font-size:36px">설정</div>
+    <div class="panel">
+      <h3>프레임 제한</h3>
+      <div class="seg" id="fpsSeg"></div>
+    </div>
+    <div class="panel">
+      <h3>볼륨</h3>
+      <div class="volrow"><span>메인</span><input type="range" id="volMaster" min="0" max="100" step="1"><b id="volMasterN"></b></div>
+      <div class="volrow"><span>음악</span><input type="range" id="volMusic" min="0" max="100" step="1"><b id="volMusicN"></b></div>
+      <div class="volrow"><span>타격음</span><input type="range" id="volSfx" min="0" max="100" step="1"><b id="volSfxN"></b></div>
+    </div>
+    <div class="panel">
+      <h3>키 설정</h3>
+      <div id="keybindList"></div>
+      <p class="opthint">방향키는 항상 이동에, 넘버패드 1/2/3은 항상 강화 선택에 함께 사용할 수 있습니다.</p>
+    </div>
+    <div class="btnrow">
+      <button class="ghost" id="resetKeysBtn">키 초기화</button>
+      <button class="cta" id="closeSettingsBtn">닫기</button>
+    </div>
   </div>
 </div>
 

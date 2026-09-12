@@ -8,6 +8,7 @@ import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame, chooseLevel
 import { pushFx } from '../net/netFx.js';
 import { showMpLevelUp } from './levelup.js';
 import { showMpResult } from './result.js';
+import { playHit, playHurt } from '../core/audio.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -121,6 +122,7 @@ function wireRoom(room) {
   // missing the first 'fx' broadcasts that land in the same tick as the
   // phase transition itself.
   room.onMessage('fx', pushFx);
+  room.onMessage('hit', (msg) => { if (msg.kind === 'hurt') playHurt(); else playHit(); });
   room.onMessage('levelup', (msg) => {
     const ps = room.state.players.get(room.sessionId);
     if (!ps) return;
