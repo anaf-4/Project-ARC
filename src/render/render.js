@@ -327,6 +327,10 @@ function drawHUD(sim) {
   if (h.dead && !G.won) {
     ctx.textAlign = 'center'; ctx.font = '20px ' + FONT_DISP; ctx.fillStyle = '#ff5277';
     ctx.fillText(G.players.some(p => !p.dead) ? '동료가 영혼 오브에 닿으면 부활합니다' : '파티 전멸', W / 2, H - 60);
+    if (h.spectating) {
+      ctx.font = '600 13px ' + FONT_BODY; ctx.fillStyle = '#a59fc4';
+      ctx.fillText(`${h.spectating} 관전 중 (Tab로 전환)`, W / 2, H - 38);
+    }
   }
   if (touch.on) {
     ctx.strokeStyle = 'rgba(239,230,210,0.35)'; ctx.lineWidth = 2; circle(touch.ox, touch.oy, 50); ctx.stroke();

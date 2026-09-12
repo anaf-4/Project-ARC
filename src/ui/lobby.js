@@ -7,6 +7,7 @@ import { sim, startMultiplayer, clearMultiplayerRoom } from '../main.js';
 import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame, chooseLevelUp } from '../net/connection.js';
 import { pushFx } from '../net/netFx.js';
 import { showMpLevelUp } from './levelup.js';
+import { showMpResult } from './result.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -142,6 +143,16 @@ function wireRoom(room) {
       return;
     }
     renderWaitingRoom();
+  });
+  // Separate from the listener above (which stops doing anything once `mp`
+  // is cleared at the waiting->playing transition): watches for the
+  // playing->ended transition, which happens well after that point, so it
+  // needs its own always-on subscription. resultShown guards against
+  // showMpResult() re-running on every later patch of an already-ended room
+  // (state.phase stays 'ended' — this only needs to fire once).
+  let resultShown = false;
+  room.onStateChange(() => {
+    if (room.state.phase === 'ended' && !resultShown) { resultShown = true; showMpResult(room); }
   });
   room.onLeave(() => {
     if (mp) { mp = null; banner('방 연결이 끊어졌습니다', 'danger'); showScreen('screenMenu'); return; }

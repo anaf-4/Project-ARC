@@ -24,8 +24,8 @@ function makeState() {
     time: 123,
     kills: 7,
     players: fakeMap([
-      ['sid1', { x: 10, y: 20, hp: 80, maxHp: 100, level: 3, dead: false, revive: 0, name: 'Alice', cls: 'vanguard' }],
-      ['sid2', { x: -5, y: 40, hp: 0, maxHp: 90, level: 2, dead: true, revive: 0.4, name: 'Bob', cls: 'unknown-class' }],
+      ['sid1', { x: 10, y: 20, hp: 80, maxHp: 100, level: 3, dead: false, revive: 0, name: 'Alice', cls: 'vanguard', xp: 5, xpNext: 20, pending: 0, kills: 3, weapons: [], passives: [] }],
+      ['sid2', { x: -5, y: 40, hp: 0, maxHp: 90, level: 2, dead: true, revive: 0.4, name: 'Bob', cls: 'unknown-class', xp: 1, xpNext: 15, pending: 0, kills: 1, weapons: [], passives: [] }],
     ]),
     enemies: fakeMap([
       ['e1', { tid: 'slime', x: 30, y: 30, hp: 5, maxHp: 9, boss: false, elite: false }],
@@ -79,7 +79,7 @@ test('netSimFromState carries every field render.js reads', () => {
 test('unmatched localSessionId leaves G.human null (caller must not render() that frame)', () => {
   const state = {
     time: 5, kills: 0,
-    players: fakeMap([['sid9', { x: 0, y: 0, hp: 10, maxHp: 10, level: 1, dead: false, revive: 0, name: 'Solo', cls: 'sniper' }]]),
+    players: fakeMap([['sid9', { x: 0, y: 0, hp: 10, maxHp: 10, level: 1, dead: false, revive: 0, name: 'Solo', cls: 'sniper', xp: 0, xpNext: 10, pending: 0, kills: 0, weapons: [], passives: [] }]]),
     enemies: fakeMap([]),
   };
   const sim = netSimFromState(state, 'not-in-state');

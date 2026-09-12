@@ -48,6 +48,7 @@ type('number')(PlayerState.prototype, 'revive');
 type('number')(PlayerState.prototype, 'xp');
 type('number')(PlayerState.prototype, 'xpNext');
 type('number')(PlayerState.prototype, 'pending');
+type('number')(PlayerState.prototype, 'kills');
 type([WeaponState])(PlayerState.prototype, 'weapons');
 type([PassiveState])(PlayerState.prototype, 'passives');
 
@@ -60,15 +61,33 @@ type('number')(EnemyState.prototype, 'maxHp');
 type('boolean')(EnemyState.prototype, 'boss');
 type('boolean')(EnemyState.prototype, 'elite');
 
+// Projectiles/drops/enemy-bullets carry enough fields for render.js's
+// drawProjs/drawDrops/drawEbul to draw them unmodified (see src/net/netSim.js)
+// — these are real, continuously-moving sim entities (unlike the one-shot fx
+// pool), so (like enemies) they need persistent per-tick position sync, not
+// a fire-and-forget broadcast.
 export class ProjectileState extends Schema {}
 type('string')(ProjectileState.prototype, 'kind');
 type('number')(ProjectileState.prototype, 'x');
 type('number')(ProjectileState.prototype, 'y');
+type('number')(ProjectileState.prototype, 'vx');
+type('number')(ProjectileState.prototype, 'vy');
+type('number')(ProjectileState.prototype, 'r');
+type('string')(ProjectileState.prototype, 'color');
+type('number')(ProjectileState.prototype, 't');
+type('number')(ProjectileState.prototype, 'life');
 
 export class DropState extends Schema {}
 type('string')(DropState.prototype, 'kind');
 type('number')(DropState.prototype, 'x');
 type('number')(DropState.prototype, 'y');
+type('number')(DropState.prototype, 'v');
+type('number')(DropState.prototype, 't');
+
+export class EbulState extends Schema {}
+type('number')(EbulState.prototype, 'x');
+type('number')(EbulState.prototype, 'y');
+type('number')(EbulState.prototype, 'r');
 
 export class RoomState extends Schema {
   constructor() {
@@ -77,16 +96,21 @@ export class RoomState extends Schema {
     this.enemies = new MapSchema();
     this.projectiles = new MapSchema();
     this.drops = new MapSchema();
+    this.ebul = new MapSchema();
     this.time = 0;
     this.kills = 0;
     this.phase = 'waiting';
     this.hostSessionId = '';
     this.maxPlayers = 4;
+    this.won = false;
+    this.bonusShards = 0;
   }
 }
 type('string')(RoomState.prototype, 'phase');
 type('string')(RoomState.prototype, 'hostSessionId');
 type('number')(RoomState.prototype, 'maxPlayers');
+type('boolean')(RoomState.prototype, 'won');
+type('number')(RoomState.prototype, 'bonusShards');
 type({ map: PlayerState })(RoomState.prototype, 'players');
 type({ map: EnemyState })(RoomState.prototype, 'enemies');
 // Task 17: `enemies` is per-client filtered via Colyseus StateView (Task 12
@@ -101,7 +125,12 @@ type({ map: EnemyState })(RoomState.prototype, 'enemies');
 // `players` intentionally has no `view()` tag: all players must stay visible
 // to everyone.
 view()(RoomState.prototype, 'enemies');
+// Unlike `enemies`, these aren't `view()`-filtered — a co-op party (max 4
+// players) never gets remotely close to the hundreds of live enemies that
+// made filtering worth the complexity for that field. Revisit if a future
+// weapon/enemy makes projectile or drop counts balloon similarly.
 type({ map: ProjectileState })(RoomState.prototype, 'projectiles');
 type({ map: DropState })(RoomState.prototype, 'drops');
+type({ map: EbulState })(RoomState.prototype, 'ebul');
 type('number')(RoomState.prototype, 'time');
 type('number')(RoomState.prototype, 'kills');

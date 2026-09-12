@@ -24,7 +24,7 @@ import { createSimulation } from '../../src/core/simulation.js';
 import { newGame, makePlayer } from '../../src/game/state.js';
 import { update } from '../../src/game/systems.js';
 import { getOptions, applyOption } from '../../src/game/growth.js';
-import { RoomState, PlayerState, EnemyState, WeaponState, PassiveState } from '../schema/RoomState.js';
+import { RoomState, PlayerState, EnemyState, WeaponState, PassiveState, ProjectileState, DropState, EbulState } from '../schema/RoomState.js';
 
 const TICK_HZ = 20;
 const TICK_DT = 1 / TICK_HZ;
@@ -52,8 +52,19 @@ export class GameRoom extends Room {
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
     this.enemyStates = new Map(); // sim enemy uid (string) -> EnemyState, reused across ticks
+    this.projStates = new Map(); // same reuse-by-uid pattern for projectiles
+    this.dropStates = new Map(); // ...and drops (xp orbs, potions, chests, magnets)
+    this.ebulStates = new Map(); // ...and enemy bullets (boss/ranged-enemy attacks)
     this.levelUpOffers = new Map(); // sessionId -> the 3 options currently offered, awaiting a choice
     this.maxClients = MAX_PLAYERS_CAP;
+
+    // Fires once when the run ends (party wipe or stage clear — see
+    // game/systems.js's G.ending countdown). Flips phase away from 'playing'
+    // so tick() stops calling update() — without this, systems.js has no
+    // equivalent of solo's G.mode gate, and the "all players dead" branch
+    // would keep re-triggering G.ending and re-firing this every tick
+    // forever. Clients watch for this phase change to show the result screen.
+    this.sim.onGameOver = () => { this.state.phase = 'ended'; };
 
     // Solo pauses the whole sim while its one human chooses (game/systems.js's
     // G.mode gate). A shared co-op tick can't pause for one player, so each
@@ -175,11 +186,13 @@ export class GameRoom extends Room {
     const { G, pools } = this.sim;
     this.state.time = G.time;
     this.state.kills = G.kills;
+    this.state.won = G.won;
+    this.state.bonusShards = G.bonusShards;
     for (const [sid, p] of this.simPlayers) {
       const ps = this.state.players.get(sid);
       if (!ps) continue;
       ps.x = p.x; ps.y = p.y; ps.hp = p.hp; ps.maxHp = p.s.maxHp; ps.level = p.level; ps.dead = p.dead; ps.revive = p.revive; ps.name = p.name; ps.cls = p.cls;
-      ps.xp = p.xp; ps.xpNext = p.xpNext; ps.pending = p.pending;
+      ps.xp = p.xp; ps.xpNext = p.xpNext; ps.pending = p.pending; ps.kills = p.kills;
       // Small, bounded (≤4 each) and only actually changes on level-up, so a
       // full clear+rebuild every tick isn't the anti-pattern it was for
       // enemies (hundreds of entities, every tick, regardless of change).
@@ -224,6 +237,22 @@ export class GameRoom extends Room {
       }
     }
 
+    // Projectiles, drops and enemy bullets were, until now, never synced at
+    // all — RoomState declared the schema fields (Task 11) but nothing ever
+    // wrote to them, so no weapon attack or xp orb ever appeared client-side
+    // in multiplayer even though the server was resolving them correctly.
+    // Same reuse-by-uid pattern as enemies above, for the same reason
+    // (avoids the clear+recreate diffing anti-pattern from item 3).
+    syncPool(pools.projs.live, this.state.projectiles, this.projStates, ProjectileState, (ps, e) => {
+      ps.kind = e.kind; ps.x = e.x; ps.y = e.y; ps.vx = e.vx; ps.vy = e.vy; ps.r = e.r; ps.color = e.color; ps.t = e.t; ps.life = e.life;
+    });
+    syncPool(pools.drops.live, this.state.drops, this.dropStates, DropState, (ds, g) => {
+      ds.kind = g.kind; ds.x = g.x; ds.y = g.y; ds.v = g.v; ds.t = g.t;
+    });
+    syncPool(pools.ebul.live, this.state.ebul, this.ebulStates, EbulState, (es, b) => {
+      es.x = b.x; es.y = b.y; es.r = b.r;
+    });
+
     // Task 17: `enemies` is a `@view()`-tagged field (see RoomState.js), so
     // it is no longer broadcast to every client by default — each client
     // only sees the EnemyStates explicitly added to its own `client.view`.
@@ -241,5 +270,23 @@ export class GameRoom extends Room {
         if (es) client.view.add(es);
       }
     }
+  }
+}
+
+// Generic version of the enemy-sync loop above: mutate existing schema
+// instances in place, keyed by the sim's own uid, instead of clearing and
+// recreating every live entity every tick.
+function syncPool(live, stateMap, instanceMap, StateClass, assign) {
+  const seen = new Set();
+  for (const o of live) {
+    if (!o.alive) continue;
+    const uid = String(o.uid);
+    seen.add(uid);
+    let s = instanceMap.get(uid);
+    if (!s) { s = new StateClass(); instanceMap.set(uid, s); stateMap.set(uid, s); }
+    assign(s, o);
+  }
+  for (const uid of instanceMap.keys()) {
+    if (!seen.has(uid)) { instanceMap.delete(uid); stateMap.delete(uid); }
   }
 }

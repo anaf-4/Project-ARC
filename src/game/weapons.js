@@ -27,7 +27,7 @@ export function explode(sim, pr) {
   addFx(sim, 'boom', pr.x, pr.y, { r: pr.er, life: 0.35, color: pr.color });
   if (pr.zone) {
     const z = sim.pools.projs.get(); z.kind = 'zone'; z.x = pr.x; z.y = pr.y; z.r = pr.er * 0.8; z.dmg = pr.dmg * 0.25; z.life = 2.6; z.t = 0; z.tick = 0;
-    z.owner = p; z.color = '#ff8a3d'; z.hitIds.length = 0; z.hits = null; z.vx = z.vy = 0;
+    z.owner = p; z.color = '#ff8a3d'; z.hitIds.length = 0; z.hits = null; z.vx = z.vy = 0; z.uid = sim.G.uid++;
   }
   pr.alive = false;
 }

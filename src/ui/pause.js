@@ -28,6 +28,11 @@ export function openMpPause(p, onLeave) {
   mpLeaveFn = onLeave;
   openPause(p);
 }
+// Called from main.js's leaveMultiplayer(): without this, a later solo run
+// would inherit a stale mpLeaveFn — openPause() would wrongly skip pausing
+// sim.G and quitBtn would keep showing "방 나가기" (and call back into a
+// multiplayer leave callback for a room that no longer exists).
+export function clearMpPause() { mpLeaveFn = null; }
 export function closePause() {
   $('pause').classList.remove('on');
   if (!mpLeaveFn && sim.G) sim.G.mode = 'play';

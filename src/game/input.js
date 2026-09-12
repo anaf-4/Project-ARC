@@ -4,6 +4,7 @@ import { openPause, closePause, openMpPause } from '../ui/pause.js';
 import { curOpts, chooseOption, doReroll } from '../ui/levelup.js';
 import { banner } from '../ui/banner.js';
 import { toggleDebug } from '../render/render.js';
+import { cycleSpectate } from '../net/netSim.js';
 
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -32,6 +33,7 @@ window.addEventListener('keydown', e => {
     // tied to sim.G.mode) don't apply to a networked run.
     if (e.code === 'Escape' || e.code === 'KeyP') toggleMpPause();
     if (e.code === 'F3') { e.preventDefault(); toggleDebug(); }
+    if (e.code === 'Tab') { e.preventDefault(); cycleSpectate(e.shiftKey ? -1 : 1); }
     return;
   }
   if (!sim.G || sim.G.demo) return;

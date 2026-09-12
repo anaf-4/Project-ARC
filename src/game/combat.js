@@ -43,18 +43,19 @@ export function dropXp(sim, x, y, v) {
   if (drops.live.length > 650) {
     for (let t = 0; t < 6; t++) { const g = pick(drops.live); if (g.alive && g.kind === 'xp') { g.v += v; return; } }
   }
-  const g = drops.get(); g.kind = 'xp'; g.x = x + rand(-4, 4); g.y = y + rand(-4, 4); g.v = v; g.vac = false; g.sp = 0; g.t = 0;
+  const g = drops.get(); g.kind = 'xp'; g.x = x + rand(-4, 4); g.y = y + rand(-4, 4); g.v = v; g.vac = false; g.sp = 0; g.t = 0; g.uid = sim.G.uid++;
 }
-export function dropItem(sim, kind, x, y) { const g = sim.pools.drops.get(); g.kind = kind; g.x = x; g.y = y; g.v = 0; g.vac = false; g.sp = 0; g.t = 0; }
+export function dropItem(sim, kind, x, y) { const g = sim.pools.drops.get(); g.kind = kind; g.x = x; g.y = y; g.v = 0; g.vac = false; g.sp = 0; g.t = 0; g.uid = sim.G.uid++; }
 export function shoot(sim, p, kind, a, speed, r, dmg, o) {
   const pr = sim.pools.projs.get();
   pr.kind = kind; pr.x = p.x; pr.y = p.y; pr.vx = Math.cos(a) * speed * p.s.projSpeed; pr.vy = Math.sin(a) * speed * p.s.projSpeed;
   pr.r = r; pr.dmg = dmg; pr.pierce = o.pierce || 1; pr.life = o.life || 1; pr.color = o.color || '#fff'; pr.owner = p;
   pr.er = o.er || 0; pr.zone = !!o.zone; pr.t = 0; pr.out = o.out || 0; pr.hits = null; pr.tick = 0; pr.hitIds.length = 0;
+  pr.uid = sim.G.uid++;
   return pr;
 }
 export function fireEbul(sim, x, y, dx, dy, speed, r, dmg) {
-  const b = sim.pools.ebul.get(); b.x = x; b.y = y; b.vx = dx * speed; b.vy = dy * speed; b.r = r; b.dmg = dmg; b.life = 6;
+  const b = sim.pools.ebul.get(); b.x = x; b.y = y; b.vx = dx * speed; b.vy = dy * speed; b.r = r; b.dmg = dmg; b.life = 6; b.uid = sim.G.uid++;
 }
 export function addFx(sim, kind, x, y, o) {
   const f = sim.pools.fxs.get(); f.kind = kind; f.x = x; f.y = y; f.t = 0; f.life = o.life || 0.3; f.r = o.r || 0; f.a = o.a || 0;

@@ -14,6 +14,7 @@ import { $ } from './core/utils.js';
 import { netSimFromState } from './net/netSim.js';
 import { sendMove } from './net/connection.js';
 import { updateNetFx, getNetFx } from './net/netFx.js';
+import { clearMpPause } from './ui/pause.js';
 
 export const sim = createSimulation();
 sim.onBanner = banner;
@@ -32,6 +33,7 @@ export function startMultiplayer(room) {
 // pause overlay's "방 나가기" button.
 export function leaveMultiplayer() {
   if (mpRoom) { mpRoom.leave(); mpRoom = null; }
+  clearMpPause();
   renderLobby();
   resetToMenu();
   $('lobby').classList.add('on');
