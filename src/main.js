@@ -17,7 +17,7 @@ import { updateNetFx, getNetFx } from './net/netFx.js';
 import { clearMpPause } from './ui/pause.js';
 import './ui/settings.js';
 import { loadSettings, getSettings } from './core/settings.js';
-import { initAudio, startMusic, playHit, playHurt } from './core/audio.js';
+import { initAudio, startMusic, playHit, playHurt, resumeAudio } from './core/audio.js';
 
 loadSettings();
 
@@ -38,6 +38,10 @@ function startAudioOnce() {
 }
 document.addEventListener('pointerdown', startAudioOnce, { once: true });
 document.addEventListener('keydown', startAudioOnce, { once: true });
+// Re-resume on later interaction too — some platforms suspend the context
+// again on window blur/minimize, not just before the very first gesture.
+document.addEventListener('pointerdown', resumeAudio);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) resumeAudio(); });
 
 // ---------------- 멀티플레이어 ----------------
 export let mpRoom = null;

@@ -5,6 +5,15 @@
 // browser API into the shared sim core, mirroring the existing sim.onFx
 // pattern for visual effects).
 let ctx = null, masterGain = null, musicGain = null, sfxGain = null, musicNodes = null;
+// Solo calls playHit()/playHurt() straight from combat.js's onHit hook, once
+// per damage() call — an AOE weapon connecting with a dozen enemies in one
+// frame (very much the normal case once a run is a few minutes in) used to
+// mean a dozen overlapping 100ms blips every frame, which reads to the ear
+// as one continuous drone/buzz rather than discrete hits. Rate-limit here,
+// at the single shared choke point, so it's fixed for solo's direct calls
+// and multiplayer's already-per-tick-coalesced broadcast alike.
+const MIN_HIT_INTERVAL = 0.06;
+let lastHitAt = -Infinity, lastHurtAt = -Infinity;
 
 function ensureCtx() {
   if (ctx) return ctx;
@@ -32,6 +41,8 @@ export function setSfxVolume(v) { if (sfxGain) sfxGain.gain.value = v; }
 export function playHit() {
   if (!ctx) return;
   const t = ctx.currentTime;
+  if (t - lastHitAt < MIN_HIT_INTERVAL) return;
+  lastHitAt = t;
   const osc = ctx.createOscillator(), gain = ctx.createGain();
   osc.type = 'square';
   osc.frequency.setValueAtTime(180, t);
@@ -46,6 +57,8 @@ export function playHit() {
 export function playHurt() {
   if (!ctx) return;
   const t = ctx.currentTime;
+  if (t - lastHurtAt < MIN_HIT_INTERVAL) return;
+  lastHurtAt = t;
   const osc = ctx.createOscillator(), gain = ctx.createGain();
   osc.type = 'sawtooth';
   osc.frequency.setValueAtTime(90, t);
@@ -81,3 +94,7 @@ export function stopMusic() {
   for (const n of musicNodes) { try { n.o.stop(); n.lfo.stop(); } catch (e) { /* already stopped */ } }
   musicNodes = null;
 }
+// Some platforms suspend the context again on window blur/minimize (not
+// just before the very first gesture) — cheap to re-resume opportunistically
+// on later interaction too instead of assuming the first unlock sticks forever.
+export function resumeAudio() { if (ctx && ctx.state === 'suspended') ctx.resume(); }

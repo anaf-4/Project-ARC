@@ -69,5 +69,12 @@ $('keybindList').addEventListener('click', e => {
 });
 $('resetKeysBtn').addEventListener('click', () => { resetKeybinds(); renderKeybinds(); });
 
-$('settingsBtn').addEventListener('click', () => { renderSettings(); $('settings').classList.add('on'); });
+function openSettings() { renderSettings(); $('settings').classList.add('on'); }
+$('settingsBtn').addEventListener('click', openSettings);
+// Reachable mid-run too (solo pause and the multiplayer "check my build"
+// overlay both use the same #pause modal — see ui/pause.js), not just from
+// the main menu before a game starts. Settings and pause share a z-index,
+// but #settings comes later in the DOM so it paints on top without needing
+// to hide #pause first; closing it just reveals pause again underneath.
+$('pauseSettingsBtn').addEventListener('click', openSettings);
 $('closeSettingsBtn').addEventListener('click', () => { $('settings').classList.remove('on'); });
