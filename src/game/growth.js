@@ -42,6 +42,11 @@ export function optName(o) {
   if (o.kind === 'pnew' || o.kind === 'pup') return PASSIVES[o.id].name;
   return o.kind === 'heal' ? '응급 회복' : '에테르 파편';
 }
+export function optIcon(o) {
+  if (o.kind === 'wnew' || o.kind === 'wup') return WEAPONS[o.id].icon;
+  if (o.kind === 'pnew' || o.kind === 'pup') return PASSIVES[o.id].icon;
+  return o.kind === 'heal' ? '🧪' : '◆';
+}
 export function botLevel(sim, p) {
   const opts = getOptions(p, 3);
   let best = opts[0], bs = -1;
@@ -61,7 +66,6 @@ export function openChest(sim, p, tier = 1) {
   addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: col });
   addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: col });
   addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: col, a: Math.random() * TAU });
-  sim.onReward?.(tier);
   if (!REDUCED) G.shake = Math.max(G.shake, 8);
   // Evolution unlocks the usual way (paired passive at any level, or —
   // for a weapon tagged comboWith — by carrying the combo partner weapon
@@ -84,12 +88,17 @@ export function openChest(sim, p, tier = 1) {
     w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
     const info = evoInfo(w);
     if (!G.demo) sim.onBanner?.(`${p === G.human ? '' : p.name + ' '}진화! ${WEAPONS[w.id].name} → ${info.name}`, 'evo');
+    sim.onReward?.(tier, [{ icon: info.icon, name: info.name }]);
     return;
   }
   // Higher-tier chests offer more skills at once (up to the tier-4 cap) —
   // this is the whole point of the tier system once a weapon-evolution
   // isn't on offer instead.
-  const gains = [];
-  for (let i = 0; i < tier; i++) { const o = getOptions(p, 1)[0]; applyOption(sim, p, o); gains.push(optName(o)); }
+  const gains = [], items = [];
+  for (let i = 0; i < tier; i++) {
+    const o = getOptions(p, 1)[0]; applyOption(sim, p, o);
+    gains.push(optName(o)); items.push({ icon: optIcon(o), name: optName(o) });
+  }
   if (!G.demo && p === G.human) sim.onBanner?.(`${CHEST_TIERS[tier].name} 에테르 상자: ${gains.join(', ')} 강화`, 'good');
+  sim.onReward?.(tier, items);
 }

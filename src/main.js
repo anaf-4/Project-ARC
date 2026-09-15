@@ -27,7 +27,7 @@ sim.onBanner = banner;
 sim.onLevelUp = openLevelUp;
 sim.onGameOver = finishGame;
 sim.onHit = (kind) => { if (kind === 'hurt') playHurt(); else playHit(); };
-sim.onReward = (tier) => { playReward(); showChestCard(tier); };
+sim.onReward = (tier, items) => { playReward(); showChestCard(tier, items); };
 
 // AudioContext can't start before a user gesture (autoplay policy) — kick it
 // off on whichever comes first, then never again.

@@ -125,7 +125,7 @@ function wireRoom(room) {
   // phase transition itself.
   room.onMessage('fx', pushFx);
   room.onMessage('hit', (msg) => { if (msg.kind === 'hurt') playHurt(); else playHit(); });
-  room.onMessage('reward', (msg) => { playReward(); showChestCard(msg.tier); });
+  room.onMessage('reward', (msg) => { playReward(); showChestCard(msg.tier, msg.items); });
   room.onMessage('levelup', (msg) => {
     const ps = room.state.players.get(room.sessionId);
     if (!ps) return;

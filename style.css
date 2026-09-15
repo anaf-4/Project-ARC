@@ -108,6 +108,13 @@ button{font:inherit;color:inherit;cursor:pointer}
   border:3px solid var(--cc);box-shadow:0 0 36px var(--cc);transition:box-shadow .2s,border-color .2s}
 .chestcard.spin{opacity:1;animation:chestSpin 1.15s cubic-bezier(.22,.85,.3,1) forwards}
 .chestcard.settled{box-shadow:0 0 60px var(--cc)}
+.chestcard .items{position:absolute;inset:14px 8px;display:flex;align-items:center;justify-content:center;
+  flex-wrap:wrap;gap:6px;animation:itemPop .3s ease-out}
+.chestcard .items .itemIco{font-size:40px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.chestcard .items .itemIco .ico{width:52px;height:52px}
+.chestcard .items.many .itemIco{font-size:24px}
+.chestcard .items.many .itemIco .ico{width:30px;height:30px}
+@keyframes itemPop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 @keyframes chestSpin{
   0%{transform:translate(-50%,-50%) scale(.4) rotateY(0deg)}
   75%{transform:translate(-50%,-50%) scale(1.2) rotateY(1080deg)}
