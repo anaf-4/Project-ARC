@@ -5,9 +5,13 @@
   --body:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,"Noto Color Emoji",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--night);color:var(--bone);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}
+html,body{position:fixed;inset:0;width:100%;height:100%;margin:0;background:var(--night);color:var(--bone);font-family:var(--body);overflow:hidden;overscroll-behavior:none;touch-action:none;user-select:none;-webkit-user-select:none}
+/* Any scrollable panel keeps working with mouse wheel / touch drag, but never shows the OS's own scrollbar chrome — it always looked out of place against this UI, and Android WebView in particular draws an especially obtrusive one by default. */
+.lobby,.box{scrollbar-width:none;-ms-overflow-style:none}
+.lobby::-webkit-scrollbar,.box::-webkit-scrollbar{display:none}
 canvas#game{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 button{font:inherit;color:inherit;cursor:pointer}
+.ico{width:1em;height:1em;vertical-align:-0.15em;object-fit:contain}
 :focus-visible{outline:2px solid var(--aether);outline-offset:2px}
 
 /* ---------- 로비 ---------- */

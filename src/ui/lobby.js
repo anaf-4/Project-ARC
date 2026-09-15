@@ -1,5 +1,6 @@
 import { $ } from '../core/utils.js';
 import { CLASSES, WEAPONS, META, metaCost } from '../data/tables.js';
+import { iconHTML } from '../data/icons.js';
 import { saveMeta } from '../core/meta.js';
 import { newGame } from '../game/state.js';
 import { banner } from './banner.js';
@@ -36,7 +37,7 @@ export function renderLobby() {
       <span class="sigil">${c.sigil}</span>
       <span class="cname">${c.name}<small>${c.role}</small></span>
       <span class="cdesc">${c.desc}</span>
-      <span class="cmeta">${WEAPONS[c.weapon].icon} ${WEAPONS[c.weapon].name}로 시작. ${c.traits}</span>
+      <span class="cmeta">${iconHTML(WEAPONS[c.weapon].icon)} ${WEAPONS[c.weapon].name}로 시작. ${c.traits}</span>
     </button>`).join('');
   $('partySeg').innerHTML = [1, 2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.party === n}">${n === 1 ? '솔로' : n + '인'}</button>`).join('');
   $('stageSeg').innerHTML = [[360, '퀵 6분'], [900, '표준 15분'], [1800, '롱 30분']].map(([s, l]) => `<button data-s="${s}" aria-pressed="${sel.stage === s}">${l}</button>`).join('');
@@ -44,7 +45,7 @@ export function renderLobby() {
   $('shardCount').textContent = sim.meta.shards.toLocaleString();
   $('metaList').innerHTML = META.map(m => {
     const l = sim.meta.lv[m.id] || 0, maxed = l >= m.max, cost = metaCost(m, l);
-    return `<div class="mrow"><span class="mi">${m.icon}</span><div><b>${m.name}</b><span>${m.desc}</span></div>
+    return `<div class="mrow"><span class="mi">${iconHTML(m.icon)}</span><div><b>${m.name}</b><span>${m.desc}</span></div>
       <div class="pips">${Array.from({ length: m.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div>
       <button class="buy" data-m="${m.id}" ${maxed || sim.meta.shards < cost ? 'disabled' : ''}>${maxed ? '완료' : '◆ ' + cost}</button></div>`;
   }).join('');

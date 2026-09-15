@@ -1,5 +1,6 @@
 import { $ } from '../core/utils.js';
 import { WEAPONS, PASSIVES, STAT_LABEL } from '../data/tables.js';
+import { iconHTML } from '../data/icons.js';
 import { getOptions, applyOption } from '../game/growth.js';
 import { sim } from '../main.js';
 
@@ -20,16 +21,16 @@ function optCardHTML(o, i, p) {
       tag = `Lv ${w.lv} → ${w.lv + 1}`;
       desc = Object.keys(b).filter(k => a[k] !== b[k] && STAT_LABEL[k]).map(k => `${STAT_LABEL[k]} ${a[k]} → ${b[k]}`).join(', ') || D.desc;
     }
-    evo = `진화 짝: ${PASSIVES[D.pair].icon} ${PASSIVES[D.pair].name} → ${D.evoIcon} ${D.evo}`;
+    evo = `진화 짝: ${iconHTML(PASSIVES[D.pair].icon)} ${PASSIVES[D.pair].name} → ${iconHTML(D.evoIcon)} ${D.evo}`;
   } else if (o.kind === 'pnew' || o.kind === 'pup') {
     const D = PASSIVES[o.id]; icon = D.icon; name = D.name; kcol = '#9b7bff';
     const q = p.passives.find(q => q.id === o.id);
     tag = q ? `Lv ${q.lv} → ${q.lv + 1}` : '새 패시브'; desc = D.desc + ' (레벨당)';
     const pw = Object.entries(WEAPONS).find(([, w]) => w.pair === o.id);
-    if (pw) evo = `진화 짝: ${pw[1].icon} ${pw[1].name} → ${pw[1].evoIcon} ${pw[1].evo}`;
+    if (pw) evo = `진화 짝: ${iconHTML(pw[1].icon)} ${pw[1].name} → ${iconHTML(pw[1].evoIcon)} ${pw[1].evo}`;
   } else if (o.kind === 'heal') { icon = '🧪'; name = '응급 회복'; tag = '보너스'; desc = '최대 체력의 30%를 회복합니다.'; kcol = '#63f5a8'; }
   else { icon = '◆'; name = '에테르 파편'; tag = '보너스'; desc = '정산 시 에테르 파편 10개를 추가로 받습니다.'; kcol = '#ffd166'; }
-  return `<button class="card" data-i="${i}" style="--k:${kcol}"><span class="key">${i + 1}</span><span class="ic">${icon}</span>
+  return `<button class="card" data-i="${i}" style="--k:${kcol}"><span class="key">${i + 1}</span><span class="ic">${iconHTML(icon)}</span>
     <span class="nm">${name}</span><span class="lvtag">${tag}</span><p>${desc}</p>${evo ? `<span class="evo">${evo}</span>` : ''}</button>`;
 }
 export function openLevelUp(p) {

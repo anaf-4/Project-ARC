@@ -1,7 +1,8 @@
 import { cv, ctx, W, H, DPR } from '../core/canvas.js';
-import { TAU, rand, clamp, FONT_BODY, FONT_DISP, FONT_EMOJI, fmt } from '../core/utils.js';
+import { TAU, rand, clamp, FONT_BODY, FONT_DISP, fmt } from '../core/utils.js';
 import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS } from '../data/tables.js';
 import { wst } from '../game/weapons.js';
+import { drawIcon } from '../data/icons.js';
 import { touch } from '../game/input.js';
 
 let VX0 = 0, VY0 = 0, VX1 = 0, VY1 = 0, showDebug = true;
@@ -334,8 +335,7 @@ function drawHUD(sim) {
     ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(x, byW, s, s, 5); ctx.fill();
     ctx.lineWidth = w && w.evo ? 2.5 : 1; ctx.strokeStyle = w && w.evo ? '#ffd166' : 'rgba(239,230,210,0.22)'; ctx.stroke();
     if (!w) continue;
-    ctx.font = '22px ' + FONT_EMOJI; ctx.fillStyle = '#fff';
-    ctx.fillText(w.evo ? WEAPONS[w.id].evoIcon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3);
+    drawIcon(ctx, w.evo ? WEAPONS[w.id].evoIcon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3, 26);
     if (!w.evo) for (let l = 0; l < 5; l++) { ctx.fillStyle = l < w.lv ? '#6ff3e8' : 'rgba(239,230,210,0.2)'; ctx.fillRect(x + 6 + l * 6.4, byW + s - 6, 4.4, 3); }
   }
   for (let i = 0; i < 4; i++) {
@@ -343,7 +343,7 @@ function drawHUD(sim) {
     ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(x, byP, ps, ps, 4); ctx.fill();
     ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(155,123,255,0.35)'; ctx.stroke();
     if (!q) continue;
-    ctx.font = '15px ' + FONT_EMOJI; ctx.fillStyle = '#fff'; ctx.fillText(PASSIVES[q.id].icon, x + ps / 2, byP + ps / 2 - 2);
+    drawIcon(ctx, PASSIVES[q.id].icon, x + ps / 2, byP + ps / 2 - 2, 19);
     ctx.font = '700 9px ' + FONT_BODY; ctx.fillStyle = '#9b7bff'; ctx.fillText(q.lv, x + ps - 5, byP + ps - 5);
   }
   ctx.textBaseline = 'alphabetic';
