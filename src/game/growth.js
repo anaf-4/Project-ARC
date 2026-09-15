@@ -1,4 +1,4 @@
-import { REDUCED } from '../core/utils.js';
+import { REDUCED, TAU } from '../core/utils.js';
 import { WEAPONS, PASSIVES, xpNeed } from '../data/tables.js';
 import { newWeapon, recompute } from './state.js';
 import { addFx } from './combat.js';
@@ -50,15 +50,25 @@ export function botLevel(sim, p) {
     if (o.kind === 'wup') sc += 1.2;
     if (o.kind === 'wnew') sc += 0.6;
     if ((o.kind === 'pnew' || o.kind === 'pup') && p.weapons.some(w => WEAPONS[w.id].pair === o.id)) sc += 1.5;
+    if (o.kind === 'wnew' && p.weapons.some(w => WEAPONS[w.id].comboWith === o.id || WEAPONS[o.id].comboWith === w.id)) sc += 1.3;
     if (sc > bs) { bs = sc; best = o; }
   }
   applyOption(sim, p, best);
 }
 export function openChest(sim, p) {
   const G = sim.G;
-  addFx(sim, 'ring', p.x, p.y, { r: 150, life: 0.8, color: '#ffd166' });
-  if (!REDUCED) G.shake = Math.max(G.shake, 5);
-  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && p.passives.some(q => q.id === WEAPONS[w.id].pair));
+  addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: '#ffd166' });
+  addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: '#ffd166' });
+  addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: '#ffd166', a: Math.random() * TAU });
+  sim.onReward?.();
+  if (!REDUCED) G.shake = Math.max(G.shake, 8);
+  // Evolution unlocks either the usual way (paired passive at any level)
+  // or, for a weapon tagged comboWith, by carrying the combo partner
+  // weapon instead — same evolved result, two different roads to it.
+  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && (
+    p.passives.some(q => q.id === WEAPONS[w.id].pair) ||
+    (WEAPONS[w.id].comboWith && p.weapons.some(w2 => w2.id === WEAPONS[w.id].comboWith))
+  ));
   if (w) {
     w.evo = true; w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
     const D = WEAPONS[w.id];

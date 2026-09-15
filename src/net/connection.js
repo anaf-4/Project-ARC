@@ -28,3 +28,6 @@ export function startGame(room) {
 export function chooseLevelUp(room, index) {
   room.send('chooseLevelUp', { index });
 }
+export function sendDash(room) {
+  room.send('dash');
+}

@@ -16,7 +16,7 @@ export function beam(sim, p, a, len, wd, dmg) {
   addFx(sim, 'beam', p.x, p.y, { a, r: len, w: wd, life: 0.3, color: '#6ff3e8' });
 }
 export function explode(sim, pr) {
-  const p = pr.owner, burn = pr.dmg * 0.18;
+  const p = pr.owner, burn = pr.dmg * 0.12;
   const { Q2 } = sim.spatial;
   sim.spatial.query(pr.x, pr.y, pr.er, Q2);
   for (const e of Q2) {
@@ -34,7 +34,7 @@ export function explode(sim, pr) {
 
 const FIRE = {
   blade(sim, p, w, st) {
-    const R = st.r * p.s.areaMul, dmg = wdmg(p, w, st), t = sim.spatial.nearest(p.x, p.y, R + 80);
+    const R = st.r * p.s.areaMul * p.s.meleeRangeMul, dmg = wdmg(p, w, st), t = sim.spatial.nearest(p.x, p.y, R + 80);
     const base = t ? Math.atan2(t.y - p.y, t.x - p.x) : Math.atan2(p.fy, p.fx);
     const { Q1 } = sim.spatial;
     sim.spatial.query(p.x, p.y, R, Q1);
@@ -56,7 +56,7 @@ const FIRE = {
     return true;
   },
   rail(sim, p, w, st) {
-    const t = sim.spatial.nearest(p.x, p.y, 700); if (!t) return false;
+    const t = sim.spatial.nearest(p.x, p.y, 600); if (!t) return false;
     const base = Math.atan2(t.y - p.y, t.x - p.x), dmg = wdmg(p, w, st), n = st.n + p.s.amount;
     if (w.evo) { for (let i = 0; i < n; i++) beam(sim, p, base + (i - (n - 1) / 2) * 0.22, st.len, st.w * p.s.areaMul, dmg); return true; }
     for (let i = 0; i < n; i++) shoot(sim, p, 'bullet', base + (i - (n - 1) / 2) * 0.09, 900, 5 * p.s.areaMul, dmg, { pierce: st.pierce, life: 1.1, color: '#6ff3e8' });
@@ -67,12 +67,12 @@ const FIRE = {
     if (w.evo) {
       const hit = new Set(); let any = false;
       for (let c = 0; c < n; c++) {
-        let cur = sim.spatial.nearest(p.x, p.y, 520, hit); if (!cur) break;
+        let cur = sim.spatial.nearest(p.x, p.y, 420, hit); if (!cur) break;
         any = true; const pts = [p.x, p.y];
         for (let j = 0; j < st.jumps && cur; j++) {
           hit.add(cur.uid); pts.push(cur.x, cur.y);
           const cx = cur.x, cy = cur.y;
-          damage(sim, cur, dmg * (1 - j * 0.06), p, 0, 0);
+          damage(sim, cur, dmg * (1 - j * 0.1), p, 0, 0);
           cur = sim.spatial.nearest(cx, cy, st.jr * p.s.areaMul, hit);
         }
         addFx(sim, 'zap', p.x, p.y, { pts: jag(pts), life: 0.28, color: '#c9b8ff' });
@@ -80,7 +80,7 @@ const FIRE = {
       return any;
     }
     const { Q1 } = sim.spatial;
-    sim.spatial.query(p.x, p.y, 560, Q1); if (!Q1.length) return false;
+    sim.spatial.query(p.x, p.y, 460, Q1); if (!Q1.length) return false;
     const px = p.x, py = p.y;
     Q1.sort((a, b) => ((a.x - px) ** 2 + (a.y - py) ** 2) - ((b.x - px) ** 2 + (b.y - py) ** 2));
     for (let i = 0; i < n; i++) {
@@ -91,7 +91,7 @@ const FIRE = {
   },
   fireball(sim, p, w, st) {
     const { Q1 } = sim.spatial;
-    sim.spatial.query(p.x, p.y, 520, Q1); if (!Q1.length) return false;
+    sim.spatial.query(p.x, p.y, 460, Q1); if (!Q1.length) return false;
     const n = st.n + p.s.amount, dmg = wdmg(p, w, st);
     for (let i = 0; i < n; i++) {
       const t = pick(Q1);
@@ -105,7 +105,7 @@ const FIRE = {
     const n = st.n + p.s.amount, sz = st.size || 1, dmg = wdmg(p, w, st);
     for (let i = 0; i < n; i++) {
       const a = base + (i - (n - 1) / 2) * (w.evo ? TAU / n : 0.4);
-      const pr = shoot(sim, p, 'boom', a, 480, 13 * sz * p.s.areaMul, dmg, { life: 5, out: 0.7, color: w.evo ? '#ffd166' : '#e8f0ff' });
+      const pr = shoot(sim, p, 'boom', a, 480, 13 * sz * p.s.areaMul, dmg, { life: 5, out: 1.1, color: w.evo ? '#ffd166' : '#e8f0ff' });
       pr.hits = new Map();
     }
     return true;
@@ -122,6 +122,18 @@ const FIRE = {
       addFx(sim, 'bolt', x, y, { r: R, life: 0.32, color: w.evo ? '#9ff9ff' : '#fff3a0', pts: jag([x + rand(-30, 30), y - 340, x, y]) });
       if (w.evo) { const c = sim.spatial.nearest(x, y, 170); if (c) { const cx = c.x, cy = c.y; damage(sim, c, dmg * 0.5, p, 0, 0); addFx(sim, 'zap', x, y, { pts: jag([x, y, cx, cy]), life: 0.22, color: '#9ff9ff' }); } }
     }
+    return true;
+  },
+  trap(sim, p, w, st) {
+    // Deployable weapon: drops a stationary damage zone wherever the player
+    // currently stands (not aimed at enemies) — reuses the same 'zone'
+    // projectile kind fireball's evolution already ticks damage on, since
+    // that's exactly "a damage zone that sits on the ground for a while".
+    const dmg = wdmg(p, w, st), color = w.evo ? '#c9b8ff' : '#9b7bff';
+    const z = sim.pools.projs.get();
+    z.kind = 'zone'; z.x = p.x; z.y = p.y; z.r = st.r * p.s.areaMul; z.dmg = dmg; z.life = st.life; z.t = 0; z.tick = 0;
+    z.owner = p; z.color = color; z.hitIds.length = 0; z.hits = null; z.vx = z.vy = 0; z.uid = sim.G.uid++;
+    addFx(sim, 'ring', p.x, p.y, { r: z.r * 0.6, life: 0.3, color });
     return true;
   },
 };
@@ -147,7 +159,7 @@ export function orbitTick(sim, p, w, st, dt) {
   }
 }
 export function auraTick(sim, p, w, st) {
-  const R = st.r * p.s.areaMul, dmg = wdmg(p, w, st);
+  const R = st.r * p.s.areaMul * p.s.meleeRangeMul, dmg = wdmg(p, w, st);
   const { Q1 } = sim.spatial;
   sim.spatial.query(p.x, p.y, R, Q1);
   let hit = 0;

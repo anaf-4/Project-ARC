@@ -18,8 +18,10 @@ export function openPause(p) {
   $('pBuild').innerHTML = buildHTML(p);
   $('pRecipes').innerHTML = Object.entries(WEAPONS).map(([id, D]) => {
     const w = p.weapons.find(w => w.id === id), hasP = p.passives.some(q => q.id === D.pair);
-    const cls = w && w.evo ? 'done' : (w && hasP ? 'have' : '');
-    return `<tr class="${cls}"><td>${D.icon} ${D.name}${w ? (w.evo ? ' (진화 완료)' : ` Lv ${w.lv}`) : ''}</td><td class="arrow">+</td><td>${PASSIVES[D.pair].icon} ${PASSIVES[D.pair].name}</td><td class="arrow">→</td><td>${D.evoIcon} ${D.evo}</td></tr>`;
+    const hasCombo = D.comboWith && p.weapons.some(w2 => w2.id === D.comboWith);
+    const cls = w && w.evo ? 'done' : (w && (hasP || hasCombo) ? 'have' : '');
+    const reqText = D.comboWith ? `${PASSIVES[D.pair].icon} ${PASSIVES[D.pair].name} 또는 ${WEAPONS[D.comboWith].icon} ${WEAPONS[D.comboWith].name}` : `${PASSIVES[D.pair].icon} ${PASSIVES[D.pair].name}`;
+    return `<tr class="${cls}"><td>${D.icon} ${D.name}${w ? (w.evo ? ' (진화 완료)' : ` Lv ${w.lv}`) : ''}</td><td class="arrow">+</td><td>${reqText}</td><td class="arrow">→</td><td>${D.evoIcon} ${D.evo}</td></tr>`;
   }).join('');
   $('pause').classList.add('on');
   $('resumeBtn').focus({ preventScroll: true });

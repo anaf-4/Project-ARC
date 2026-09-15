@@ -60,6 +60,7 @@ type('number')(EnemyState.prototype, 'hp');
 type('number')(EnemyState.prototype, 'maxHp');
 type('boolean')(EnemyState.prototype, 'boss');
 type('boolean')(EnemyState.prototype, 'elite');
+type('boolean')(EnemyState.prototype, 'rush');
 
 // Projectiles/drops/enemy-bullets carry enough fields for render.js's
 // drawProjs/drawDrops/drawEbul to draw them unmodified (see src/net/netSim.js)

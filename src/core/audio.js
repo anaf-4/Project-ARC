@@ -98,3 +98,20 @@ export function stopMusic() {
 // just before the very first gesture) — cheap to re-resume opportunistically
 // on later interaction too instead of assuming the first unlock sticks forever.
 export function resumeAudio() { if (ctx && ctx.state === 'suspended') ctx.resume(); }
+// Chest-open reward cue — a short ascending three-note chime, distinct in
+// character from the impact blips so it reads as "reward" not "combat".
+export function playReward() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const notes = [523.25, 659.25, 783.99]; // C5 E5 G5
+  notes.forEach((f, i) => {
+    const start = t + i * 0.07;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'triangle'; osc.frequency.value = f;
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + 0.35);
+    osc.connect(gain); gain.connect(sfxGain);
+    osc.start(start); osc.stop(start + 0.36);
+  });
+}

@@ -8,7 +8,7 @@ import { createRoom, joinRoom, kickPlayer, setMaxPlayers, startGame, chooseLevel
 import { pushFx } from '../net/netFx.js';
 import { showMpLevelUp } from './levelup.js';
 import { showMpResult } from './result.js';
-import { playHit, playHurt } from '../core/audio.js';
+import { playHit, playHurt, playReward } from '../core/audio.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -39,11 +39,11 @@ export function renderLobby() {
       <span class="cmeta">${WEAPONS[c.weapon].icon} ${WEAPONS[c.weapon].name}로 시작. ${c.traits}</span>
     </button>`).join('');
   $('partySeg').innerHTML = [1, 2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.party === n}">${n === 1 ? '솔로' : n + '인'}</button>`).join('');
-  $('stageSeg').innerHTML = [[360, '퀵 6분'], [900, '표준 15분']].map(([s, l]) => `<button data-s="${s}" aria-pressed="${sel.stage === s}">${l}</button>`).join('');
+  $('stageSeg').innerHTML = [[360, '퀵 6분'], [900, '표준 15분'], [1800, '롱 30분']].map(([s, l]) => `<button data-s="${s}" aria-pressed="${sel.stage === s}">${l}</button>`).join('');
   $('maxPlayersSeg').innerHTML = [2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.maxPlayers === n}">${n}인</button>`).join('');
   $('shardCount').textContent = sim.meta.shards.toLocaleString();
   $('metaList').innerHTML = META.map(m => {
-    const l = sim.meta.lv[m.id] || 0, maxed = l >= m.max, cost = metaCost(l);
+    const l = sim.meta.lv[m.id] || 0, maxed = l >= m.max, cost = metaCost(m, l);
     return `<div class="mrow"><span class="mi">${m.icon}</span><div><b>${m.name}</b><span>${m.desc}</span></div>
       <div class="pips">${Array.from({ length: m.max }, (_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</div>
       <button class="buy" data-m="${m.id}" ${maxed || sim.meta.shards < cost ? 'disabled' : ''}>${maxed ? '완료' : '◆ ' + cost}</button></div>`;
@@ -55,7 +55,7 @@ $('stageSeg').addEventListener('click', e => { const b = e.target.closest('butto
 $('maxPlayersSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sel.maxPlayers = +b.dataset.n; renderLobby(); } });
 $('metaList').addEventListener('click', e => {
   const b = e.target.closest('.buy'); if (!b || b.disabled) return;
-  const m = META.find(x => x.id === b.dataset.m), l = sim.meta.lv[m.id] || 0, cost = metaCost(l);
+  const m = META.find(x => x.id === b.dataset.m), l = sim.meta.lv[m.id] || 0, cost = metaCost(m, l);
   if (l >= m.max || sim.meta.shards < cost) return;
   sim.meta.shards -= cost; sim.meta.lv[m.id] = l + 1; saveMeta(sim.meta); renderLobby();
 });
@@ -123,6 +123,7 @@ function wireRoom(room) {
   // phase transition itself.
   room.onMessage('fx', pushFx);
   room.onMessage('hit', (msg) => { if (msg.kind === 'hurt') playHurt(); else playHit(); });
+  room.onMessage('reward', playReward);
   room.onMessage('levelup', (msg) => {
     const ps = room.state.players.get(room.sessionId);
     if (!ps) return;

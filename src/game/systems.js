@@ -5,6 +5,24 @@ import { explode, updateWeapons } from './weapons.js';
 import { director, ringPos } from './director.js';
 import { gainXp, openChest } from './growth.js';
 
+const DASH_SPEED = 1500;
+const DASH_TIME = 0.16;
+const DASH_CD = 3.2;
+// Called from a dash request (client's own key for solo, a network message
+// for multiplayer — see game/input.js and server/rooms/GameRoom.js) rather
+// than threaded through the per-tick movement input, since a dash is a
+// one-shot event, not a continuous axis like movement.
+export function requestDash(sim, p) {
+  if (p.dead || p.dashCd > 0 || p.dashT > 0) return;
+  let dx = p.mx, dy = p.my;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.2) { dx = p.fx; dy = p.fy; }
+  else { dx /= len; dy /= len; }
+  p.dashDx = dx; p.dashDy = dy; p.dashT = DASH_TIME; p.dashCd = DASH_CD;
+  p.iframe = Math.max(p.iframe, DASH_TIME + 0.05);
+  addFx(sim, 'ring', p.x, p.y, { r: 34, life: 0.3, color: p.color });
+}
+
 function botDir(sim, p) {
   const G = sim.G;
   let ax = 0, ay = 0;
@@ -48,14 +66,21 @@ function updatePlayers(sim, dt, input) {
   const { Q1 } = sim.spatial;
   for (const p of G.players) {
     if (p.dead) continue;
-    let dx = 0, dy = 0;
-    if (p.auto) { const v = botDir(sim, p); dx = v[0]; dy = v[1]; }
-    else { const v = input(p); dx = v.x; dy = v.y; }
-    const len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
-    const sm = Math.min(1, dt * (p.auto ? 6 : 16));
-    p.mx = lerp(p.mx, dx, sm); p.my = lerp(p.my, dy, sm);
-    p.x += p.mx * p.s.speed * dt; p.y += p.my * p.s.speed * dt;
-    const ml = Math.hypot(p.mx, p.my); if (ml > 0.2) { p.fx = p.mx / ml; p.fy = p.my / ml; }
+    p.dashCd = Math.max(0, p.dashCd - dt);
+    if (p.dashT > 0) {
+      p.dashT -= dt;
+      p.x += p.dashDx * DASH_SPEED * dt; p.y += p.dashDy * DASH_SPEED * dt;
+      p.fx = p.dashDx; p.fy = p.dashDy;
+    } else {
+      let dx = 0, dy = 0;
+      if (p.auto) { const v = botDir(sim, p); dx = v[0]; dy = v[1]; }
+      else { const v = input(p); dx = v.x; dy = v.y; }
+      const len = Math.hypot(dx, dy); if (len > 1) { dx /= len; dy /= len; }
+      const sm = Math.min(1, dt * (p.auto ? 6 : 16));
+      p.mx = lerp(p.mx, dx, sm); p.my = lerp(p.my, dy, sm);
+      p.x += p.mx * p.s.speed * dt; p.y += p.my * p.s.speed * dt;
+      const ml = Math.hypot(p.mx, p.my); if (ml > 0.2) { p.fx = p.mx / ml; p.fy = p.my / ml; }
+    }
     p.hp = Math.min(p.s.maxHp, p.hp + (p.s.regen + p.auraRegen) * dt);
     p.iframe -= dt; p.hurt -= dt;
     if (p.iframe <= 0) {
@@ -127,6 +152,19 @@ function updateEnemies(sim, dt) {
     e.fx = dx; e.fy = dy;
     let vx = dx * e.speed, vy = dy * e.speed;
     if (e.boss) {
+      // Final-boss-only bullet pattern: alternates a slow "telegraph" phase
+      // (weaker movement, longer gap between bursts) with a fast "rush"
+      // phase (faster movement, much shorter gap) on a repeating cycle, so
+      // the fight has a learnable rhythm instead of one flat difficulty the
+      // whole way through. e.rushPhase is read by render.js for a visual
+      // tell so the speed-up is readable, not just felt.
+      if (e.final) {
+        e.phaseT += dt;
+        const cyc = e.phaseT % 6.5, rush = cyc >= 3.5;
+        e.speed = e.baseSpeed * (rush ? 1.35 : 0.65);
+        e.burstCd = e.baseBurstCd * (rush ? 0.45 : 1.7);
+        e.rushPhase = rush;
+      }
       e.spin += dt;
       if (e.dashT > 0) { e.dashT -= dt; vx = e.dvx; vy = e.dvy; }
       else if (e.teleT > 0) { e.teleT -= dt; vx = vy = 0; if (e.teleT <= 0) { e.dashT = 0.75; e.dvx = e.tdx * e.speed * 5.5; e.dvy = e.tdy * e.speed * 5.5; } }

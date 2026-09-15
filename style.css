@@ -2,7 +2,7 @@
   --night:#140f2b; --deep:#0d0a1f; --bone:#efe6d2; --mute:#a59fc4;
   --aether:#6ff3e8; --violet:#9b7bff; --ember:#ff8a3d; --danger:#ff5277; --gold:#ffd166;
   --display:"Black Han Sans","Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  --body:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;
+  --body:"Pretendard","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",system-ui,"Noto Color Emoji",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;background:var(--night);color:var(--bone);font-family:var(--body);overflow:hidden;user-select:none;-webkit-user-select:none}

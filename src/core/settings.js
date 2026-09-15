@@ -6,13 +6,13 @@ const KEY = 'arc-settings';
 export const DEFAULT_KEYBINDS = {
   moveUp: 'KeyW', moveDown: 'KeyS', moveLeft: 'KeyA', moveRight: 'KeyD',
   pick1: 'Digit1', pick2: 'Digit2', pick3: 'Digit3',
-  reroll: 'KeyR', pause: 'KeyP',
+  reroll: 'KeyR', pause: 'KeyP', dash: 'Space',
 };
 // Order + Korean labels for the settings screen.
 export const KEYBIND_ACTIONS = [
   ['moveUp', '위로 이동'], ['moveDown', '아래로 이동'], ['moveLeft', '왼쪽 이동'], ['moveRight', '오른쪽 이동'],
   ['pick1', '강화 선택 1'], ['pick2', '강화 선택 2'], ['pick3', '강화 선택 3'],
-  ['reroll', '다시 뽑기'], ['pause', '일시정지'],
+  ['reroll', '다시 뽑기'], ['pause', '일시정지'], ['dash', '대시'],
 ];
 export const FPS_OPTIONS = [144, 165, 180, 200, 240];
 

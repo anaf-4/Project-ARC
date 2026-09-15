@@ -6,6 +6,8 @@ import { banner } from '../ui/banner.js';
 import { toggleDebug } from '../render/render.js';
 import { cycleSpectate } from '../net/netSim.js';
 import { getSettings } from '../core/settings.js';
+import { requestDash } from './systems.js';
+import { sendDash } from '../net/connection.js';
 
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -43,6 +45,7 @@ window.addEventListener('keydown', e => {
     if (e.code === 'Escape' || e.code === kb.pause) toggleMpPause();
     if (e.code === 'F3') { e.preventDefault(); toggleDebug(); }
     if (e.code === 'Tab') { e.preventDefault(); cycleSpectate(e.shiftKey ? -1 : 1); }
+    if (e.code === kb.dash) { e.preventDefault(); sendDash(mpRoom); }
     return;
   }
   if (!sim.G || sim.G.demo) return;
@@ -58,6 +61,7 @@ window.addEventListener('keydown', e => {
   }
   if (e.code === 'F2') { e.preventDefault(); sim.G.human.auto = !sim.G.human.auto; banner(sim.G.human.auto ? '자동 조종 켜짐 (강화도 자동 선택)' : '자동 조종 꺼짐', 'good'); }
   if (e.code === 'F3') { e.preventDefault(); toggleDebug(); }
+  if (e.code === kb.dash && sim.G.mode === 'play') { e.preventDefault(); requestDash(sim, sim.G.human); }
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (sim.G && !sim.G.demo && sim.G.mode === 'play') openPause(); });

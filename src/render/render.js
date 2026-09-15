@@ -101,6 +101,13 @@ function drawBoss(sim, e) {
     ctx.strokeStyle = `rgba(255,82,119,${0.12 + 0.25 * k})`; ctx.lineWidth = e.r * 1.8; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.tdx * len, e.y + e.tdy * len); ctx.stroke(); ctx.lineCap = 'butt';
   }
+  if (e.rushPhase) {
+    // Telegraphs the systems.js phase-cycle rush window (faster movement +
+    // faster bullet bursts) so it's a readable pattern, not an invisible
+    // stat change — a pulsing warning ring just outside the boss.
+    ctx.strokeStyle = `rgba(255,82,119,${0.35 + 0.25 * Math.sin(G.clock * 14)})`; ctx.lineWidth = 3;
+    circle(e.x, e.y, e.r * 1.9); ctx.stroke();
+  }
   ctx.fillStyle = e.color + '26'; circle(e.x, e.y, e.r * 1.5); ctx.fill();
   ctx.fillStyle = e.flash > 0 ? '#ffffff' : '#1d1638'; circle(e.x, e.y, e.r); ctx.fill();
   ctx.lineWidth = 4; ctx.strokeStyle = e.color; ctx.stroke();
@@ -122,7 +129,7 @@ function drawAuras(sim) {
     }
     for (const w of p.weapons) {
       if (w.id === 'aura') {
-        const R = wst(w).r * p.s.areaMul;
+        const R = wst(w).r * p.s.areaMul * p.s.meleeRangeMul;
         ctx.fillStyle = w.evo ? 'rgba(255,209,102,0.1)' : 'rgba(255,107,61,0.09)'; circle(p.x, p.y, R); ctx.fill();
         ctx.strokeStyle = w.evo ? 'rgba(255,209,102,0.45)' : 'rgba(255,138,61,0.35)'; ctx.lineWidth = 2; circle(p.x, p.y, R * (0.92 + 0.08 * Math.sin(G.clock * 6))); ctx.stroke();
       } else if (w.id === 'orbit' && (w.evo || w.on > 0)) {
@@ -234,6 +241,22 @@ function drawFx(sim) {
         ctx.fillStyle = f.color;
         for (let j = 0; j < 5; j++) { const a = j * TAU / 5 + f.x, d = f.r * 0.6 + k * 20; ctx.fillRect(f.x + Math.cos(a) * d - 2, f.y + Math.sin(a) * d - 2, 4, 4); }
         break;
+      case 'burst': {
+        // Chest-opening flourish: a bright core flash plus long tapered
+        // spokes radiating outward, more festive than the plain kill 'pop'.
+        const rays = f.pts ? f.pts.length : 10;
+        ctx.fillStyle = f.color;
+        ctx.globalAlpha = al * (1 - k * 0.6);
+        circle(f.x, f.y, f.r * 0.5 * (1 - k * 0.7)); ctx.fill();
+        ctx.strokeStyle = f.color; ctx.lineWidth = 4 * (1 - k) + 1; ctx.lineCap = 'round';
+        for (let j = 0; j < rays; j++) {
+          const a = j * TAU / rays + f.a, len = f.r * (0.5 + 0.5 * k);
+          ctx.beginPath(); ctx.moveTo(f.x + Math.cos(a) * f.r * 0.25, f.y + Math.sin(a) * f.r * 0.25);
+          ctx.lineTo(f.x + Math.cos(a) * len, f.y + Math.sin(a) * len); ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+        break;
+      }
     }
   }
   ctx.globalAlpha = 1;

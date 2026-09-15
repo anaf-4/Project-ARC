@@ -17,7 +17,7 @@ import { updateNetFx, getNetFx } from './net/netFx.js';
 import { clearMpPause } from './ui/pause.js';
 import './ui/settings.js';
 import { loadSettings, getSettings } from './core/settings.js';
-import { initAudio, startMusic, playHit, playHurt, resumeAudio } from './core/audio.js';
+import { initAudio, startMusic, playHit, playHurt, playReward, resumeAudio } from './core/audio.js';
 
 loadSettings();
 
@@ -26,6 +26,7 @@ sim.onBanner = banner;
 sim.onLevelUp = openLevelUp;
 sim.onGameOver = finishGame;
 sim.onHit = (kind) => { if (kind === 'hurt') playHurt(); else playHit(); };
+sim.onReward = playReward;
 
 // AudioContext can't start before a user gesture (autoplay policy) — kick it
 // off on whichever comes first, then never again.

@@ -24,6 +24,7 @@ import { createSimulation } from '../../src/core/simulation.js';
 import { newGame, makePlayer } from '../../src/game/state.js';
 import { update } from '../../src/game/systems.js';
 import { getOptions, applyOption } from '../../src/game/growth.js';
+import { requestDash } from '../../src/game/systems.js';
 import { RoomState, PlayerState, EnemyState, WeaponState, PassiveState, ProjectileState, DropState, EbulState } from '../schema/RoomState.js';
 
 const TICK_HZ = 20;
@@ -54,6 +55,9 @@ export class GameRoom extends Room {
     // at most one 'hit' and one 'hurt' message per tick instead (see tick()).
     this.hitFlags = { hit: false, hurt: false };
     this.sim.onHit = (kind) => { this.hitFlags[kind] = true; };
+    // Chest opens are naturally rare (at most a few per boss/elite kill) —
+    // no coalescing needed, broadcast straight away like onFx.
+    this.sim.onReward = () => { this.broadcast('reward', {}); };
     this.inputs = new Map(); // sessionId -> {x, y}
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
@@ -88,6 +92,11 @@ export class GameRoom extends Room {
 
     this.onMessage('move', (client, msg) => {
       this.inputs.set(client.sessionId, { x: Number(msg.x) || 0, y: Number(msg.y) || 0 });
+    });
+
+    this.onMessage('dash', (client) => {
+      const p = this.simPlayers.get(client.sessionId);
+      if (p) requestDash(this.sim, p);
     });
 
     this.onMessage('chooseLevelUp', (client, msg) => {
@@ -237,7 +246,7 @@ export class GameRoom extends Room {
         this.enemyStates.set(uid, es);
         this.state.enemies.set(uid, es);
       }
-      es.tid = e.tid; es.x = e.x; es.y = e.y; es.hp = e.hp; es.maxHp = e.maxHp; es.boss = e.boss; es.elite = e.elite;
+      es.tid = e.tid; es.x = e.x; es.y = e.y; es.hp = e.hp; es.maxHp = e.maxHp; es.boss = e.boss; es.elite = e.elite; es.rush = !!e.rushPhase;
     }
     for (const uid of this.enemyStates.keys()) {
       if (!seen.has(uid)) {

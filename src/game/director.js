@@ -38,8 +38,8 @@ export function spawnBoss(sim, i) {
   const B = BOSSES[i], G = sim.G, pos = ringPos(sim, Math.min(G.viewW, G.viewH) / 2 + 180);
   const e = spawnEnemy(sim, 'boss', pos[0], pos[1]);
   e.boss = true; e.final = !!B.final; e.name = B.name; e.color = B.color; e.r = B.r;
-  e.maxHp = e.hp = B.hp * G.partyMul * G.bossMul; e.speed = B.speed; e.dmg = 22 + i * 8; e.xp = 80;
-  e.burstN = B.burst; e.burstCd = B.burstCd; e.burstT = 3; e.burst2 = 0; e.dashCd = 6; e.teleT = 0; e.dashT = 0; e.spin = 0; e.tdx = 0; e.tdy = 0; e.dvx = 0; e.dvy = 0;
+  e.maxHp = e.hp = B.hp * G.partyMul * G.bossMul; e.speed = B.speed; e.baseSpeed = B.speed; e.dmg = 22 + i * 8; e.xp = 80;
+  e.burstN = B.burst; e.burstCd = B.burstCd; e.baseBurstCd = B.burstCd; e.burstT = 3; e.burst2 = 0; e.phaseT = 0; e.dashCd = 6; e.teleT = 0; e.dashT = 0; e.spin = 0; e.tdx = 0; e.tdy = 0; e.dvx = 0; e.dvy = 0;
   G.bosses.push(e);
   if (!REDUCED) G.shake = 8;
   if (!G.demo) sim.onBanner?.(`${B.final ? '최종 보스' : '보스'} 출현: ${B.name}`, 'danger');

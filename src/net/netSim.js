@@ -112,7 +112,7 @@ export function netSimFromState(state, localSessionId, dt = 0) {
     const pos = bufferedPos('e:' + uid, e.x, e.y);
     enemies.push({
       alive: true, tid: e.tid, x: pos.x, y: pos.y, hp: e.hp, maxHp: e.maxHp, boss: e.boss, elite: e.elite,
-      r: e.boss ? 40 : 12, color: '#ff5277', fx: 0, fy: 1, flash: 0, phase: 0,
+      r: e.boss ? 40 : 12, color: '#ff5277', fx: 0, fy: 1, flash: 0, phase: 0, rushPhase: e.rush,
       name: e.boss ? '보스' : undefined, teleT: 0, tdx: 0, tdy: 0, spin: 0, speed: 0,
     });
   });

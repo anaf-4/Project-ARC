@@ -32,7 +32,8 @@ export function makePlayer(sim, cls, human, name) {
   const p = {
     cls, human, name, color: C.color, x: 0, y: 0, r: 14, fx: 1, fy: 0, mx: 0, my: 0, hp: 0, s: null,
     level: 1, xp: 0, xpNext: xpNeed(1), weapons: [], passives: [], dead: false, revive: 0, iframe: 0, hurt: 0,
-    pending: 0, kills: 0, auraRegen: 0, auraMag: 1, auto: !human, wig: Math.random() * TAU
+    pending: 0, kills: 0, auraRegen: 0, auraMag: 1, auto: !human, wig: Math.random() * TAU,
+    dashCd: 0, dashT: 0, dashDx: 0, dashDy: 0,
   };
   p.weapons.push(newWeapon(C.weapon));
   recompute(sim, p); p.hp = p.s.maxHp;
@@ -44,7 +45,7 @@ export function recompute(sim, p) {
   const C = CLASSES[p.cls];
   const s = {
     maxHp: C.hp, armor: C.armor || 0, speed: C.speed, dmgMul: 1, cdMul: C.cdMul || 1, areaMul: C.areaMul || 1, amount: 0, projSpeed: 1,
-    crit: 0.05 + (C.crit || 0), critGrowth: C.critGrowth || 1, regen: C.regen || 0, magnet: 85 * (C.magnetMul || 1), xpMul: 1, reviveMul: 1, explosiveMul: C.explosiveMul || 1
+    crit: 0.05 + (C.crit || 0), critGrowth: C.critGrowth || 1, regen: C.regen || 0, magnet: 85 * (C.magnetMul || 1), xpMul: 1, reviveMul: 1, explosiveMul: C.explosiveMul || 1, meleeRangeMul: 1
   };
   for (const m of META) { const l = sim.meta.lv[m.id] || 0; if (l) m.apply(s, l); }
   for (const q of p.passives) PASSIVES[q.id].apply(s, q.lv);
