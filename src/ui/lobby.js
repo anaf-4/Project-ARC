@@ -10,6 +10,7 @@ import { pushFx } from '../net/netFx.js';
 import { showMpLevelUp } from './levelup.js';
 import { showMpResult } from './result.js';
 import { playHit, playHurt, playReward } from '../core/audio.js';
+import { showChestCard } from './chestcard.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
@@ -124,7 +125,7 @@ function wireRoom(room) {
   // phase transition itself.
   room.onMessage('fx', pushFx);
   room.onMessage('hit', (msg) => { if (msg.kind === 'hurt') playHurt(); else playHit(); });
-  room.onMessage('reward', playReward);
+  room.onMessage('reward', (msg) => { playReward(); showChestCard(msg.tier); });
   room.onMessage('levelup', (msg) => {
     const ps = room.state.players.get(room.sessionId);
     if (!ps) return;

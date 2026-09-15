@@ -61,7 +61,7 @@ export function openChest(sim, p, tier = 1) {
   addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: col });
   addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: col });
   addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: col, a: Math.random() * TAU });
-  sim.onReward?.();
+  sim.onReward?.(tier);
   if (!REDUCED) G.shake = Math.max(G.shake, 8);
   // Evolution unlocks the usual way (paired passive at any level, or —
   // for a weapon tagged comboWith — by carrying the combo partner weapon

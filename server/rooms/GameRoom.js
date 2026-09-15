@@ -57,7 +57,7 @@ export class GameRoom extends Room {
     this.sim.onHit = (kind) => { this.hitFlags[kind] = true; };
     // Chest opens are naturally rare (at most a few per boss/elite kill) —
     // no coalescing needed, broadcast straight away like onFx.
-    this.sim.onReward = () => { this.broadcast('reward', {}); };
+    this.sim.onReward = (tier) => { this.broadcast('reward', { tier }); };
     this.inputs = new Map(); // sessionId -> {x, y}
     this.simPlayers = new Map(); // sessionId -> sim player object, populated once the game starts
     this.pending = new Map(); // sessionId -> {cls, name}, used to build the game at startGame time
