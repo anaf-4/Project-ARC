@@ -100,7 +100,7 @@ export function netSimFromState(state, localSessionId, dt = 0) {
     const pl = {
       sid, x: pos.x, y: pos.y, hp: p.hp, s: { maxHp: p.maxHp }, level: p.level, dead: p.dead, revive: p.revive,
       name: p.name, cls, color: '#6ff3e8', r: 14, fx: 1, fy: 0, hurt: 0, iframe: 0,
-      weapons: p.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo, ang: 0 })),
+      weapons: p.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo, altIdx: w.altIdx, ang: 0 })),
       passives: p.passives.map(q => ({ id: q.id, lv: q.lv })),
       xp: p.xp, xpNext: p.xpNext || 1, pending: p.pending, auto: false,
     };
@@ -124,7 +124,7 @@ export function netSimFromState(state, localSessionId, dt = 0) {
   const drops = [];
   if (state.drops) state.drops.forEach((g, uid) => {
     const pos = bufferedPos('g:' + uid, g.x, g.y);
-    drops.push({ alive: true, kind: g.kind, x: pos.x, y: pos.y, v: g.v, t: g.t });
+    drops.push({ alive: true, kind: g.kind, x: pos.x, y: pos.y, v: g.v, t: g.t, tier: g.tier });
   });
   const ebul = [];
   if (state.ebul) state.ebul.forEach((b, uid) => {

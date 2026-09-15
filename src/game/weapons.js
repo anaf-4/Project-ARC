@@ -1,8 +1,8 @@
 import { TAU, rand, pick, angDiff } from '../core/utils.js';
-import { WEAPONS } from '../data/tables.js';
+import { WEAPONS, evoInfo } from '../data/tables.js';
 import { damage, addFx, shoot, jag } from './combat.js';
 
-export const wst = w => w.evo ? WEAPONS[w.id].evoS : WEAPONS[w.id].lv[w.lv - 1];
+export const wst = w => w.evo ? evoInfo(w).stats : WEAPONS[w.id].lv[w.lv - 1];
 export const wdmg = (p, w, st) => st.dmg * p.s.dmgMul * (WEAPONS[w.id].explosive ? p.s.explosiveMul : 1);
 
 export function beam(sim, p, a, len, wd, dmg) {
@@ -19,11 +19,17 @@ export function explode(sim, pr) {
   const p = pr.owner, burn = pr.dmg * 0.12;
   const { Q2 } = sim.spatial;
   sim.spatial.query(pr.x, pr.y, pr.er, Q2);
+  let hits = 0;
   for (const e of Q2) {
     const dx = e.x - pr.x, dy = e.y - pr.y, d = Math.hypot(dx, dy) || 1;
     damage(sim, e, pr.dmg, p, dx / d * 140, dy / d * 140);
     if (e.alive) { e.burnT = 2.2; e.burnDps = Math.max(e.burnDps, burn); e.burnOwner = p; }
+    hits++;
   }
+  // fireball's vampiric alt-evolution (불사의 화신) heals per enemy caught
+  // in the blast — pr.heal is 0 for every other weapon/evolution (see
+  // combat.js's shoot()), so this is a no-op everywhere else.
+  if (pr.heal && p) p.hp = Math.min(p.s.maxHp, p.hp + pr.heal * hits);
   addFx(sim, 'boom', pr.x, pr.y, { r: pr.er, life: 0.35, color: pr.color });
   if (pr.zone) {
     const z = sim.pools.projs.get(); z.kind = 'zone'; z.x = pr.x; z.y = pr.y; z.r = pr.er * 0.8; z.dmg = pr.dmg * 0.25; z.life = 2.6; z.t = 0; z.tick = 0;
@@ -64,6 +70,14 @@ const FIRE = {
   },
   wand(sim, p, w, st) {
     const dmg = wdmg(p, w, st), n = st.n + p.s.amount;
+    if (w.evo && w.altIdx === 0) {
+      // 치명의 마도서 (killer alt): one heavy precision bolt instead of a
+      // chain — same evolved slot, completely different playstyle.
+      const t = sim.spatial.nearest(p.x, p.y, 520); if (!t) return false;
+      shoot(sim, p, 'bolt', Math.atan2(t.y - p.y, t.x - p.x), 700, 9, dmg, { pierce: 2, life: 1.2, color: '#ffd166' });
+      addFx(sim, 'zap', p.x, p.y, { pts: jag([p.x, p.y, t.x, t.y]), life: 0.22, color: '#ffd166' });
+      return true;
+    }
     if (w.evo) {
       const hit = new Set(); let any = false;
       for (let c = 0; c < n; c++) {
@@ -96,7 +110,7 @@ const FIRE = {
     for (let i = 0; i < n; i++) {
       const t = pick(Q1);
       shoot(sim, p, 'fire', Math.atan2(t.y - p.y, t.x - p.x) + rand(-0.08, 0.08), 360, w.evo ? 12 : 8, dmg,
-        { life: 1.8, er: st.r * p.s.areaMul, zone: !!st.zone, color: w.evo ? '#ffd166' : '#ff8a3d' });
+        { life: 1.8, er: st.r * p.s.areaMul, zone: !!st.zone, heal: st.heal || 0, color: w.evo ? '#ffd166' : '#ff8a3d' });
     }
     return true;
   },

@@ -17,12 +17,23 @@ export function openPause(p) {
   if (!mpLeaveFn) sim.G.mode = 'pause';
   $('quitBtn').textContent = mpLeaveFn ? '방 나가기' : '포기하고 정산';
   $('pBuild').innerHTML = buildHTML(p);
-  $('pRecipes').innerHTML = Object.entries(WEAPONS).map(([id, D]) => {
-    const w = p.weapons.find(w => w.id === id), hasP = p.passives.some(q => q.id === D.pair);
-    const hasCombo = D.comboWith && p.weapons.some(w2 => w2.id === D.comboWith);
-    const cls = w && w.evo ? 'done' : (w && (hasP || hasCombo) ? 'have' : '');
-    const reqText = D.comboWith ? `${iconHTML(PASSIVES[D.pair].icon)} ${PASSIVES[D.pair].name} 또는 ${iconHTML(WEAPONS[D.comboWith].icon)} ${WEAPONS[D.comboWith].name}` : `${iconHTML(PASSIVES[D.pair].icon)} ${PASSIVES[D.pair].name}`;
-    return `<tr class="${cls}"><td>${iconHTML(D.icon)} ${D.name}${w ? (w.evo ? ' (진화 완료)' : ` Lv ${w.lv}`) : ''}</td><td class="arrow">+</td><td>${reqText}</td><td class="arrow">→</td><td>${iconHTML(D.evoIcon)} ${D.evo}</td></tr>`;
+  // A weapon with altEvos gets one recipe row per possible evolution — a
+  // different skill really does lead down a different tree, so the table
+  // needs to show every road, not just the first one written in tables.js.
+  $('pRecipes').innerHTML = Object.entries(WEAPONS).flatMap(([id, D]) => {
+    const w = p.weapons.find(w => w.id === id);
+    const row = (reqPair, reqCombo, evoName, evoIcon, done) => {
+      const hasP = p.passives.some(q => q.id === reqPair);
+      const hasCombo = reqCombo && p.weapons.some(w2 => w2.id === reqCombo);
+      const cls = done ? 'done' : (w && (hasP || hasCombo) ? 'have' : '');
+      const reqText = reqCombo
+        ? `${iconHTML(PASSIVES[reqPair].icon)} ${PASSIVES[reqPair].name} 또는 ${iconHTML(WEAPONS[reqCombo].icon)} ${WEAPONS[reqCombo].name}`
+        : `${iconHTML(PASSIVES[reqPair].icon)} ${PASSIVES[reqPair].name}`;
+      return `<tr class="${cls}"><td>${iconHTML(D.icon)} ${D.name}${w ? (w.evo ? ' (진화 완료)' : ` Lv ${w.lv}`) : ''}</td><td class="arrow">+</td><td>${reqText}</td><td class="arrow">→</td><td>${iconHTML(evoIcon)} ${evoName}</td></tr>`;
+    };
+    const rows = [row(D.pair, D.comboWith, D.evo, D.evoIcon, w && w.evo && w.altIdx < 0)];
+    if (D.altEvos) D.altEvos.forEach((a, i) => rows.push(row(a.pair, a.comboWith, a.evo, a.evoIcon, w && w.evo && w.altIdx === i)));
+    return rows;
   }).join('');
   $('pause').classList.add('on');
   $('resumeBtn').focus({ preventScroll: true });

@@ -1,6 +1,6 @@
 import { cv, ctx, W, H, DPR } from '../core/canvas.js';
 import { TAU, rand, clamp, FONT_BODY, FONT_DISP, fmt } from '../core/utils.js';
-import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS } from '../data/tables.js';
+import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS, CHEST_TIERS, evoInfo } from '../data/tables.js';
 import { wst } from '../game/weapons.js';
 import { drawIcon } from '../data/icons.js';
 import { touch } from '../game/input.js';
@@ -53,9 +53,10 @@ function drawDrops(sim) {
     if (!g.alive || g.kind === 'xp' || !vis(g.x, g.y, 30)) continue;
     const bob = Math.sin(g.t * 4) * 2;
     if (g.kind === 'chest') {
-      ctx.fillStyle = `rgba(255,209,102,${0.18 + 0.1 * Math.sin(g.t * 5)})`; circle(g.x, g.y, 30); ctx.fill();
-      ctx.fillStyle = '#ffd166'; rr(g.x - 13, g.y - 9 + bob, 26, 18, 3); ctx.fill();
-      ctx.fillStyle = '#b37a12'; ctx.fillRect(g.x - 13, g.y - 3 + bob, 26, 3);
+      const col = CHEST_TIERS[g.tier || 1].color;
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(g.t * 5); ctx.fillStyle = col; circle(g.x, g.y, 30); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = col; rr(g.x - 13, g.y - 9 + bob, 26, 18, 3); ctx.fill();
+      ctx.fillStyle = '#1c1430'; ctx.fillRect(g.x - 13, g.y - 3 + bob, 26, 3);
       ctx.fillStyle = '#6ff3e8'; ctx.fillRect(g.x - 3, g.y - 5 + bob, 6, 7);
     } else if (g.kind === 'potion') {
       ctx.fillStyle = '#ff5277'; circle(g.x, g.y + bob, 9); ctx.fill();
@@ -275,7 +276,7 @@ function drawFx(sim) {
 function drawIndicators(sim) {
   const G = sim.G;
   const items = [];
-  for (const g of sim.pools.drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, '#ffd166');
+  for (const g of sim.pools.drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, CHEST_TIERS[g.tier || 1].color);
   for (const p of G.players) if (p.dead && p !== G.human) items.push(p.x, p.y, p.color);
   for (const b of G.bosses) if (b.alive) items.push(b.x, b.y, '#ff5277');
   for (let i = 0; i < items.length; i += 3) {
@@ -335,7 +336,7 @@ function drawHUD(sim) {
     ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(x, byW, s, s, 5); ctx.fill();
     ctx.lineWidth = w && w.evo ? 2.5 : 1; ctx.strokeStyle = w && w.evo ? '#ffd166' : 'rgba(239,230,210,0.22)'; ctx.stroke();
     if (!w) continue;
-    drawIcon(ctx, w.evo ? WEAPONS[w.id].evoIcon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3, 26);
+    drawIcon(ctx, w.evo ? evoInfo(w).icon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3, 26);
     if (!w.evo) for (let l = 0; l < 5; l++) { ctx.fillStyle = l < w.lv ? '#6ff3e8' : 'rgba(239,230,210,0.2)'; ctx.fillRect(x + 6 + l * 6.4, byW + s - 6, 4.4, 3); }
   }
   for (let i = 0; i < 4; i++) {

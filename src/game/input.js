@@ -26,7 +26,7 @@ function toggleMpPause() {
   const ps = mpRoom.state.players.get(mpRoom.sessionId);
   if (!ps) return;
   const p = {
-    weapons: ps.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo })),
+    weapons: ps.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo, altIdx: w.altIdx })),
     passives: ps.passives.map(q => ({ id: q.id, lv: q.lv })),
   };
   openMpPause(p, leaveMultiplayer);

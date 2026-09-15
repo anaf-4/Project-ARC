@@ -1,5 +1,5 @@
 import { REDUCED, TAU } from '../core/utils.js';
-import { WEAPONS, PASSIVES, xpNeed } from '../data/tables.js';
+import { WEAPONS, PASSIVES, xpNeed, CHEST_TIERS, evoInfo } from '../data/tables.js';
 import { newWeapon, recompute } from './state.js';
 import { addFx } from './combat.js';
 
@@ -49,33 +49,47 @@ export function botLevel(sim, p) {
     let sc = Math.random();
     if (o.kind === 'wup') sc += 1.2;
     if (o.kind === 'wnew') sc += 0.6;
-    if ((o.kind === 'pnew' || o.kind === 'pup') && p.weapons.some(w => WEAPONS[w.id].pair === o.id)) sc += 1.5;
+    if ((o.kind === 'pnew' || o.kind === 'pup') && p.weapons.some(w => WEAPONS[w.id].pair === o.id || WEAPONS[w.id].altEvos?.some(a => a.pair === o.id))) sc += 1.5;
     if (o.kind === 'wnew' && p.weapons.some(w => WEAPONS[w.id].comboWith === o.id || WEAPONS[o.id].comboWith === w.id)) sc += 1.3;
     if (sc > bs) { bs = sc; best = o; }
   }
   applyOption(sim, p, best);
 }
-export function openChest(sim, p) {
+export function openChest(sim, p, tier = 1) {
   const G = sim.G;
-  addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: '#ffd166' });
-  addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: '#ffd166' });
-  addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: '#ffd166', a: Math.random() * TAU });
+  const col = CHEST_TIERS[tier].color;
+  addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: col });
+  addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: col });
+  addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: col, a: Math.random() * TAU });
   sim.onReward?.();
   if (!REDUCED) G.shake = Math.max(G.shake, 8);
-  // Evolution unlocks either the usual way (paired passive at any level)
-  // or, for a weapon tagged comboWith, by carrying the combo partner
-  // weapon instead — same evolved result, two different roads to it.
-  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && (
-    p.passives.some(q => q.id === WEAPONS[w.id].pair) ||
-    (WEAPONS[w.id].comboWith && p.weapons.some(w2 => w2.id === WEAPONS[w.id].comboWith))
-  ));
-  if (w) {
-    w.evo = true; w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
+  // Evolution unlocks the usual way (paired passive at any level, or —
+  // for a weapon tagged comboWith — by carrying the combo partner weapon
+  // instead), OR via one of altEvos: a *different* skill unlocking a
+  // *different* evolved form of the same weapon. -1 = primary, >=0 = which
+  // altEvos entry. Checked in order; the first satisfied path wins.
+  const evoMatch = (w) => {
     const D = WEAPONS[w.id];
-    if (!G.demo) sim.onBanner?.(`${p === G.human ? '' : p.name + ' '}진화! ${D.name} → ${D.evo}`, 'evo');
+    if (p.passives.some(q => q.id === D.pair) || (D.comboWith && p.weapons.some(w2 => w2.id === D.comboWith))) return -1;
+    if (D.altEvos) for (let i = 0; i < D.altEvos.length; i++) {
+      const a = D.altEvos[i];
+      if ((a.pair && p.passives.some(q => q.id === a.pair)) || (a.comboWith && p.weapons.some(w2 => w2.id === a.comboWith))) return i;
+    }
+    return null;
+  };
+  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && evoMatch(w) !== null);
+  if (w) {
+    const match = evoMatch(w);
+    w.evo = true; if (match >= 0) w.altIdx = match;
+    w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
+    const info = evoInfo(w);
+    if (!G.demo) sim.onBanner?.(`${p === G.human ? '' : p.name + ' '}진화! ${WEAPONS[w.id].name} → ${info.name}`, 'evo');
     return;
   }
+  // Higher-tier chests offer more skills at once (up to the tier-4 cap) —
+  // this is the whole point of the tier system once a weapon-evolution
+  // isn't on offer instead.
   const gains = [];
-  for (let i = 0; i < 2; i++) { const o = getOptions(p, 1)[0]; applyOption(sim, p, o); gains.push(optName(o)); }
-  if (!G.demo && p === G.human) sim.onBanner?.(`에테르 상자: ${gains.join(', ')} 강화`, 'good');
+  for (let i = 0; i < tier; i++) { const o = getOptions(p, 1)[0]; applyOption(sim, p, o); gains.push(optName(o)); }
+  if (!G.demo && p === G.human) sim.onBanner?.(`${CHEST_TIERS[tier].name} 에테르 상자: ${gains.join(', ')} 강화`, 'good');
 }

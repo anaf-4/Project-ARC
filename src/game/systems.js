@@ -220,7 +220,7 @@ function collect(sim, p, g) {
   if (g.kind === 'xp') gainXp(sim, p, g.v);
   else if (g.kind === 'potion') { p.hp = Math.min(p.s.maxHp, p.hp + Math.max(30, p.s.maxHp * 0.3)); addFx(sim, 'ring', p.x, p.y, { r: 40, life: 0.4, color: '#ff5277', owner: p }); }
   else if (g.kind === 'magnet') { for (const q of sim.pools.drops.live) if (q.alive && q.kind === 'xp') q.vac = true; addFx(sim, 'ring', p.x, p.y, { r: 400, life: 0.6, color: '#6ff3e8' }); }
-  else if (g.kind === 'chest') openChest(sim, p);
+  else if (g.kind === 'chest') openChest(sim, p, g.tier);
 }
 function updateDrops(sim, dt) {
   const P = sim.G.players;

@@ -24,6 +24,7 @@ export class WeaponState extends Schema {}
 type('string')(WeaponState.prototype, 'id');
 type('number')(WeaponState.prototype, 'lv');
 type('boolean')(WeaponState.prototype, 'evo');
+type('number')(WeaponState.prototype, 'altIdx');
 
 export class PassiveState extends Schema {}
 type('string')(PassiveState.prototype, 'id');
@@ -84,6 +85,7 @@ type('number')(DropState.prototype, 'x');
 type('number')(DropState.prototype, 'y');
 type('number')(DropState.prototype, 'v');
 type('number')(DropState.prototype, 't');
+type('number')(DropState.prototype, 'tier');
 
 export class EbulState extends Schema {}
 type('number')(EbulState.prototype, 'x');

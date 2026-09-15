@@ -3,7 +3,7 @@ import { rand, pick, REDUCED } from '../core/utils.js';
 export function damage(sim, e, amt, p, kx, ky, noCrit) {
   if (!e.alive) return;
   let crit = false;
-  if (p && !noCrit && Math.random() < p.s.crit) { amt *= 2; crit = true; }
+  if (p && !noCrit && Math.random() < p.s.crit) { amt *= p.s.critMul; crit = true; }
   e.hp -= amt; e.flash = 0.08;
   sim.onHit?.('hit', e.x, e.y);
   const kb = e.boss ? 0.05 : e.elite ? 0.3 : 1;
@@ -11,11 +11,21 @@ export function damage(sim, e, amt, p, kx, ky, noCrit) {
   if (sim.pools.texts.live.length < 150) addText(sim, e.x + rand(-6, 6), e.y - e.r, amt, crit);
   if (e.hp <= 0) kill(sim, e, p);
 }
+// Chest tier decides both how many skills it offers when opened (see
+// growth.js's openChest) and what color it renders as (render.js) — bosses
+// give more than elites, the final boss more still, and a flat 15% "lucky"
+// roll can bump any of them up one tier as a nice surprise. Capped at 4
+// since that's already the max useful reward count (see openChest).
+function chestTier(e) {
+  let t = e.boss ? (e.final ? 3 : 2) : 1;
+  if (Math.random() < 0.15) t = Math.min(4, t + 1);
+  return t;
+}
 export function kill(sim, e, p) {
   const { G, pools } = sim;
-  e.alive = false; G.kills++; if (p) p.kills++;
+  e.alive = false; G.kills++; if (p) { p.kills++; if (p.s.lifesteal) p.hp = Math.min(p.s.maxHp, p.hp + p.s.lifesteal); }
   dropXp(sim, e.x, e.y, e.xp * (1 + G.diff * 0.07));
-  if (e.boss || e.elite) dropItem(sim, 'chest', e.x, e.y);
+  if (e.boss || e.elite) dropItem(sim, 'chest', e.x, e.y, chestTier(e));
   else { const r = Math.random(); if (r < 0.006) dropItem(sim, 'potion', e.x, e.y); else if (r < 0.0085) dropItem(sim, 'magnet', e.x, e.y); }
   if (pools.fxs.live.length < 380) addFx(sim, 'pop', e.x, e.y, { r: e.r, color: e.color, life: 0.35 });
   if (e.boss) {
@@ -47,12 +57,12 @@ export function dropXp(sim, x, y, v) {
   }
   const g = drops.get(); g.kind = 'xp'; g.x = x + rand(-4, 4); g.y = y + rand(-4, 4); g.v = v; g.vac = false; g.sp = 0; g.t = 0; g.uid = sim.G.uid++;
 }
-export function dropItem(sim, kind, x, y) { const g = sim.pools.drops.get(); g.kind = kind; g.x = x; g.y = y; g.v = 0; g.vac = false; g.sp = 0; g.t = 0; g.uid = sim.G.uid++; }
+export function dropItem(sim, kind, x, y, tier) { const g = sim.pools.drops.get(); g.kind = kind; g.x = x; g.y = y; g.v = 0; g.vac = false; g.sp = 0; g.t = 0; g.uid = sim.G.uid++; g.tier = tier || 1; }
 export function shoot(sim, p, kind, a, speed, r, dmg, o) {
   const pr = sim.pools.projs.get();
   pr.kind = kind; pr.x = p.x; pr.y = p.y; pr.vx = Math.cos(a) * speed * p.s.projSpeed; pr.vy = Math.sin(a) * speed * p.s.projSpeed;
   pr.r = r; pr.dmg = dmg; pr.pierce = o.pierce || 1; pr.life = o.life || 1; pr.color = o.color || '#fff'; pr.owner = p;
-  pr.er = o.er || 0; pr.zone = !!o.zone; pr.t = 0; pr.out = o.out || 0; pr.hits = null; pr.tick = 0; pr.hitIds.length = 0;
+  pr.er = o.er || 0; pr.zone = !!o.zone; pr.heal = o.heal || 0; pr.t = 0; pr.out = o.out || 0; pr.hits = null; pr.tick = 0; pr.hitIds.length = 0;
   pr.uid = sim.G.uid++;
   return pr;
 }

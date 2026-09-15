@@ -11,6 +11,16 @@ export let curOpts = [];
 // (the server is authoritative — it applies the choice, not this client).
 let mpCallback = null;
 
+// A weapon's evolution paths: the primary pair/comboWith plus any altEvos
+// — different skills really do lead to different trees, so both the
+// weapon card (all its roads) and the passive card (every weapon it
+// unlocks, which for a shared passive like guard/결전 태세 is more than
+// one) need to enumerate all of them, not just the first written in
+// tables.js.
+function weaponEvoPaths(id) {
+  const D = WEAPONS[id];
+  return [{ pair: D.pair, comboWith: D.comboWith, evo: D.evo, evoIcon: D.evoIcon }, ...(D.altEvos || [])];
+}
 function optCardHTML(o, i, p) {
   let icon, name, tag, desc, evo = '', kcol;
   if (o.kind === 'wnew' || o.kind === 'wup') {
@@ -21,13 +31,20 @@ function optCardHTML(o, i, p) {
       tag = `Lv ${w.lv} → ${w.lv + 1}`;
       desc = Object.keys(b).filter(k => a[k] !== b[k] && STAT_LABEL[k]).map(k => `${STAT_LABEL[k]} ${a[k]} → ${b[k]}`).join(', ') || D.desc;
     }
-    evo = `진화 짝: ${iconHTML(PASSIVES[D.pair].icon)} ${PASSIVES[D.pair].name} → ${iconHTML(D.evoIcon)} ${D.evo}`;
+    evo = `진화 짝: ` + weaponEvoPaths(o.id).map(path => {
+      const reqIcon = path.comboWith ? WEAPONS[path.comboWith].icon : PASSIVES[path.pair].icon;
+      const reqName = path.comboWith ? WEAPONS[path.comboWith].name : PASSIVES[path.pair].name;
+      return `${iconHTML(reqIcon)} ${reqName} → ${iconHTML(path.evoIcon)} ${path.evo}`;
+    }).join(' / ');
   } else if (o.kind === 'pnew' || o.kind === 'pup') {
     const D = PASSIVES[o.id]; icon = D.icon; name = D.name; kcol = '#9b7bff';
     const q = p.passives.find(q => q.id === o.id);
     tag = q ? `Lv ${q.lv} → ${q.lv + 1}` : '새 패시브'; desc = D.desc + ' (레벨당)';
-    const pw = Object.entries(WEAPONS).find(([, w]) => w.pair === o.id);
-    if (pw) evo = `진화 짝: ${iconHTML(pw[1].icon)} ${pw[1].name} → ${iconHTML(pw[1].evoIcon)} ${pw[1].evo}`;
+    const matches = [];
+    for (const wid of Object.keys(WEAPONS)) {
+      for (const path of weaponEvoPaths(wid)) if (path.pair === o.id) matches.push(`${iconHTML(WEAPONS[wid].icon)} ${WEAPONS[wid].name} → ${iconHTML(path.evoIcon)} ${path.evo}`);
+    }
+    if (matches.length) evo = `진화 짝: ${matches.join(' / ')}`;
   } else if (o.kind === 'heal') { icon = '🧪'; name = '응급 회복'; tag = '보너스'; desc = '최대 체력의 30%를 회복합니다.'; kcol = '#63f5a8'; }
   else { icon = '◆'; name = '에테르 파편'; tag = '보너스'; desc = '정산 시 에테르 파편 10개를 추가로 받습니다.'; kcol = '#ffd166'; }
   return `<button class="card" data-i="${i}" style="--k:${kcol}"><span class="key">${i + 1}</span><span class="ic">${iconHTML(icon)}</span>

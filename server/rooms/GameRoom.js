@@ -216,7 +216,7 @@ export class GameRoom extends Room {
       // enemies (hundreds of entities, every tick, regardless of change).
       ps.weapons.clear();
       for (const w of p.weapons) {
-        const ws = new WeaponState(); ws.id = w.id; ws.lv = w.lv; ws.evo = w.evo;
+        const ws = new WeaponState(); ws.id = w.id; ws.lv = w.lv; ws.evo = w.evo; ws.altIdx = w.altIdx;
         ps.weapons.push(ws);
       }
       ps.passives.clear();
@@ -265,7 +265,7 @@ export class GameRoom extends Room {
       ps.kind = e.kind; ps.x = e.x; ps.y = e.y; ps.vx = e.vx; ps.vy = e.vy; ps.r = e.r; ps.color = e.color; ps.t = e.t; ps.life = e.life;
     });
     syncPool(pools.drops.live, this.state.drops, this.dropStates, DropState, (ds, g) => {
-      ds.kind = g.kind; ds.x = g.x; ds.y = g.y; ds.v = g.v; ds.t = g.t;
+      ds.kind = g.kind; ds.x = g.x; ds.y = g.y; ds.v = g.v; ds.t = g.t; ds.tier = g.tier || 1;
     });
     syncPool(pools.ebul.live, this.state.ebul, this.ebulStates, EbulState, (es, b) => {
       es.x = b.x; es.y = b.y; es.r = b.r;

@@ -39,13 +39,14 @@ export function makePlayer(sim, cls, human, name) {
   recompute(sim, p); p.hp = p.s.maxHp;
   return p;
 }
-export function newWeapon(id) { return { id, lv: 1, evo: false, t: 0.4, on: 0, off: 0, ang: 0, hits: new Map() }; }
+export function newWeapon(id) { return { id, lv: 1, evo: false, altIdx: -1, t: 0.4, on: 0, off: 0, ang: 0, hits: new Map() }; }
 
 export function recompute(sim, p) {
   const C = CLASSES[p.cls];
   const s = {
     maxHp: C.hp, armor: C.armor || 0, speed: C.speed, dmgMul: 1, cdMul: C.cdMul || 1, areaMul: C.areaMul || 1, amount: 0, projSpeed: 1,
-    crit: 0.05 + (C.crit || 0), critGrowth: C.critGrowth || 1, regen: C.regen || 0, magnet: 85 * (C.magnetMul || 1), xpMul: 1, reviveMul: 1, explosiveMul: C.explosiveMul || 1, meleeRangeMul: 1
+    crit: 0.05 + (C.crit || 0), critGrowth: C.critGrowth || 1, regen: C.regen || 0, magnet: 85 * (C.magnetMul || 1), xpMul: 1, reviveMul: 1, explosiveMul: C.explosiveMul || 1, meleeRangeMul: 1,
+    critMul: 2, lifesteal: 0,
   };
   for (const m of META) { const l = sim.meta.lv[m.id] || 0; if (l) m.apply(s, l); }
   for (const q of p.passives) PASSIVES[q.id].apply(s, q.lv);

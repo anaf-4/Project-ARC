@@ -22,7 +22,7 @@ export function showMpResult(room) {
   const state = room.state;
   $('levelup').classList.remove('on'); $('pause').classList.remove('on');
   const players = [];
-  state.players.forEach((p, sid) => players.push({ ...p, sid, weapons: p.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo })), passives: p.passives.map(q => ({ id: q.id, lv: q.lv })) }));
+  state.players.forEach((p, sid) => players.push({ ...p, sid, weapons: p.weapons.map(w => ({ id: w.id, lv: w.lv, evo: w.evo, altIdx: w.altIdx })), passives: p.passives.map(q => ({ id: q.id, lv: q.lv })) }));
   const me = players.find(p => p.sid === room.sessionId) || players[0];
   const totalKills = players.reduce((s, p) => s + p.kills, 0);
   const earned = Math.floor((me.kills / 15 + state.time / 8 + me.level * 2) * (state.won ? 1.5 : 1)) + state.bonusShards;
