@@ -1,10 +1,10 @@
 import { cv, ctx, W, H, DPR } from '../core/canvas.js';
-import { TAU, rand, clamp, FONT_BODY, FONT_DISP, FONT_EMOJI, fmt } from '../core/utils.js';
-import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS } from '../data/tables.js';
-import { enemies, projs, ebul, drops, fxs, texts } from '../core/pool.js';
-import { G } from '../game/state.js';
+import { TAU, rand, clamp, REDUCED, FONT_BODY, FONT_DISP, fmt } from '../core/utils.js';
+import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS, CHEST_TIERS, evoInfo } from '../data/tables.js';
 import { wst } from '../game/weapons.js';
+import { drawIcon } from '../data/icons.js';
 import { touch } from '../game/input.js';
+import { DASH_CD } from '../game/systems.js';
 
 let VX0 = 0, VY0 = 0, VX1 = 0, VY1 = 0, showDebug = true;
 export function toggleDebug() { showDebug = !showDebug; }
@@ -33,13 +33,14 @@ function drawGround() {
   const S = 64;
   for (let gx = Math.floor(VX0 / S) * S; gx < VX1; gx += S) for (let gy = Math.floor(VY0 / S) * S; gy < VY1; gy += S) ctx.fillRect(gx - 1, gy - 1, 2, 2);
 }
-function shapePath(shape, x, y, r, ph) {
-  if (shape === 'circle') { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); }
-  else if (shape === 'diamond') { const wv = 1.1 + Math.sin(ph * 12) * 0.35; ctx.moveTo(x, y - r); ctx.lineTo(x + r * wv, y); ctx.lineTo(x, y + r * 0.8); ctx.lineTo(x - r * wv, y); ctx.closePath(); }
-  else if (shape === 'square') { ctx.rect(x - r, y - r, r * 2, r * 2); }
-  else { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r, y + r * 0.8); ctx.lineTo(x - r, y + r * 0.8); ctx.closePath(); }
+function shapeInto(p, shape, x, y, r, ph) {
+  if (shape === 'circle') { p.moveTo(x + r, y); p.arc(x, y, r, 0, TAU); }
+  else if (shape === 'diamond') { const wv = 1.1 + Math.sin(ph * 12) * 0.35; p.moveTo(x, y - r); p.lineTo(x + r * wv, y); p.lineTo(x, y + r * 0.8); p.lineTo(x - r * wv, y); p.closePath(); }
+  else if (shape === 'square') { p.rect(x - r, y - r, r * 2, r * 2); }
+  else { p.moveTo(x, y - r * 1.2); p.lineTo(x + r, y + r * 0.8); p.lineTo(x - r, y + r * 0.8); p.closePath(); }
 }
-function drawDrops() {
+function drawDrops(sim) {
+  const { drops } = sim.pools;
   const tiers = [[0, 3, '#6ff3e8', 4], [3, 12, '#9b7bff', 5.5], [12, 1e9, '#ff8a3d', 7]];
   for (const [lo, hi, col, s] of tiers) {
     ctx.beginPath(); let any = false;
@@ -53,9 +54,10 @@ function drawDrops() {
     if (!g.alive || g.kind === 'xp' || !vis(g.x, g.y, 30)) continue;
     const bob = Math.sin(g.t * 4) * 2;
     if (g.kind === 'chest') {
-      ctx.fillStyle = `rgba(255,209,102,${0.18 + 0.1 * Math.sin(g.t * 5)})`; circle(g.x, g.y, 30); ctx.fill();
-      ctx.fillStyle = '#ffd166'; rr(g.x - 13, g.y - 9 + bob, 26, 18, 3); ctx.fill();
-      ctx.fillStyle = '#b37a12'; ctx.fillRect(g.x - 13, g.y - 3 + bob, 26, 3);
+      const col = CHEST_TIERS[g.tier || 1].color;
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(g.t * 5); ctx.fillStyle = col; circle(g.x, g.y, 30); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.fillStyle = col; rr(g.x - 13, g.y - 9 + bob, 26, 18, 3); ctx.fill();
+      ctx.fillStyle = '#1c1430'; ctx.fillRect(g.x - 13, g.y - 3 + bob, 26, 3);
       ctx.fillStyle = '#6ff3e8'; ctx.fillRect(g.x - 3, g.y - 5 + bob, 6, 7);
     } else if (g.kind === 'potion') {
       ctx.fillStyle = '#ff5277'; circle(g.x, g.y + bob, 9); ctx.fill();
@@ -66,25 +68,44 @@ function drawDrops() {
     }
   }
 }
-function drawEnemies() {
-  const L = enemies.live;
+// Used to build a single fill/stroke pass per enemy type below instead of
+// one full scan of the whole live-enemy list per type (was 5 scans just for
+// fills, plus 3 more for eyes/flash/elite-boss — 8 full passes total, which
+// mattered once enemy counts got into the hundreds). One scan now
+// accumulates every type's Path2D, the eye path, the flash path and a halo
+// path together; a handful of trivial per-type loops fill/stroke them after.
+function drawEnemies(sim) {
+  const G = sim.G, L = sim.pools.enemies.live;
+  const typePaths = {}; for (const tid of ENEMY_KINDS) typePaths[tid] = new Path2D();
+  const haloPath = new Path2D(); let anyHalo = false;
+  const eyePath = new Path2D(); let anyEye = false;
+  const flashPath = new Path2D(); let anyFlash = false;
+  const specials = [];
+
+  for (const e of L) {
+    if (!e.alive) continue;
+    if (e.boss) { specials.push(e); continue; }
+    if (!vis(e.x, e.y, e.r)) { if (e.elite) specials.push(e); continue; }
+    const ex = e.x + e.fx * e.r * 0.4, ey = e.y + e.fy * e.r * 0.4;
+    eyePath.moveTo(ex + 2.5, ey); eyePath.arc(ex, ey, 2.5, 0, TAU); anyEye = true;
+    if (e.elite) { specials.push(e); continue; }
+    const ph = e.phase + G.clock;
+    haloPath.moveTo(e.x + e.r + 3, e.y); haloPath.arc(e.x, e.y, e.r + 3, 0, TAU); anyHalo = true;
+    shapeInto(typePaths[e.tid], ETYPES[e.tid].shape, e.x, e.y, e.r, ph);
+    if (e.flash > 0) { shapeInto(flashPath, ETYPES[e.tid].shape, e.x, e.y, e.r, ph); anyFlash = true; }
+  }
+  // 배경과의 명암 대비를 위해 일반 몹 아래에 어두운 받침을 먼저 깐다 (엘리트/
+  // 보스는 이미 자기 색의 후광이 있어 따로 필요 없음)
+  if (anyHalo) { ctx.fillStyle = 'rgba(8,5,18,0.55)'; ctx.fill(haloPath); }
   for (const tid of ENEMY_KINDS) {
-    const T = ETYPES[tid]; ctx.beginPath(); let any = false;
-    for (const e of L) {
-      if (!e.alive || e.tid !== tid || e.elite || e.boss || !vis(e.x, e.y, e.r)) continue;
-      any = true; shapePath(T.shape, e.x, e.y, e.r, e.phase + G.clock);
-    }
-    if (any) { ctx.fillStyle = T.color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = T.edge; ctx.stroke(); }
+    ctx.fillStyle = ETYPES[tid].color; ctx.fill(typePaths[tid]);
+    ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(10,6,20,0.9)'; ctx.stroke(typePaths[tid]);
   }
   // 눈: 목표를 향한 작은 슬릿
-  ctx.fillStyle = '#140f2b'; ctx.beginPath();
-  for (const e of L) { if (!e.alive || e.boss || !vis(e.x, e.y, e.r)) continue; const ex = e.x + e.fx * e.r * 0.4, ey = e.y + e.fy * e.r * 0.4; ctx.moveTo(ex + 2.5, ey); ctx.arc(ex, ey, 2.5, 0, TAU); }
-  ctx.fill();
+  if (anyEye) { ctx.fillStyle = '#140f2b'; ctx.fill(eyePath); }
   // 피격 플래시
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); let fl = false;
-  for (const e of L) { if (!e.alive || e.flash <= 0 || e.boss || e.elite || !vis(e.x, e.y, e.r)) continue; fl = true; shapePath(ETYPES[e.tid].shape, e.x, e.y, e.r, e.phase + G.clock); }
-  if (fl) ctx.fill();
-  for (const e of L) {
+  if (anyFlash) { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill(flashPath); }
+  for (const e of specials) {
     if (!e.alive || !vis(e.x, e.y, e.r + 40)) continue;
     if (e.elite) {
       ctx.fillStyle = 'rgba(255,209,102,0.16)'; circle(e.x, e.y, e.r + 12 + Math.sin(G.clock * 6) * 3); ctx.fill();
@@ -92,14 +113,22 @@ function drawEnemies() {
       ctx.lineWidth = 3; ctx.strokeStyle = '#ffd166'; ctx.stroke();
       ctx.fillStyle = '#140f2b'; circle(e.x + e.fx * 10, e.y + e.fy * 10, 4); ctx.fill();
       hpBar(e.x, e.y - e.r - 10, 50, e.hp / e.maxHp, '#ffd166');
-    } else if (e.boss) drawBoss(e);
+    } else if (e.boss) drawBoss(sim, e);
   }
 }
-function drawBoss(e) {
+function drawBoss(sim, e) {
+  const G = sim.G;
   if (e.teleT > 0) {
     const k = 1 - e.teleT / 0.7, len = e.speed * 5.5 * 0.75;
     ctx.strokeStyle = `rgba(255,82,119,${0.12 + 0.25 * k})`; ctx.lineWidth = e.r * 1.8; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.lineTo(e.x + e.tdx * len, e.y + e.tdy * len); ctx.stroke(); ctx.lineCap = 'butt';
+  }
+  if (e.rushPhase) {
+    // Telegraphs the systems.js phase-cycle rush window (faster movement +
+    // faster bullet bursts) so it's a readable pattern, not an invisible
+    // stat change — a pulsing warning ring just outside the boss.
+    ctx.strokeStyle = `rgba(255,82,119,${0.35 + 0.25 * Math.sin(G.clock * 14)})`; ctx.lineWidth = 3;
+    circle(e.x, e.y, e.r * 1.9); ctx.stroke();
   }
   ctx.fillStyle = e.color + '26'; circle(e.x, e.y, e.r * 1.5); ctx.fill();
   ctx.fillStyle = e.flash > 0 ? '#ffffff' : '#1d1638'; circle(e.x, e.y, e.r); ctx.fill();
@@ -109,10 +138,18 @@ function drawBoss(e) {
   ctx.fillStyle = e.color; circle(e.x + e.fx * e.r * 0.2, e.y + e.fy * e.r * 0.2, e.r * (0.3 + 0.05 * Math.sin(G.clock * 8))); ctx.fill();
 }
 function hpBar(x, y, w, r, col) {
-  ctx.fillStyle = 'rgba(13,10,31,0.8)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
+  // The depleted-health track used to be drawn near-black (rgba(13,10,31,..)),
+  // almost the same tone as the world's own clear color — against a dark
+  // background tile the bar's own "empty" portion was nearly invisible, so
+  // there was nothing showing where the bar even started/ended. A lighter
+  // translucent track plus a crisp dark outline keeps the bar readable
+  // against any background, ground clutter included.
+  ctx.fillStyle = 'rgba(239,230,210,0.22)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
+  ctx.strokeStyle = 'rgba(10,6,20,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2 - 1.5, y - 1.5, w + 3, 7);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * clamp(r, 0, 1), 4);
 }
-function drawAuras() {
+function drawAuras(sim) {
+  const G = sim.G;
   for (const p of G.players) {
     if (p.dead) continue;
     if (CLASSES[p.cls].aura) {
@@ -121,7 +158,7 @@ function drawAuras() {
     }
     for (const w of p.weapons) {
       if (w.id === 'aura') {
-        const R = wst(w).r * p.s.areaMul;
+        const R = wst(w).r * p.s.areaMul * p.s.meleeRangeMul;
         ctx.fillStyle = w.evo ? 'rgba(255,209,102,0.1)' : 'rgba(255,107,61,0.09)'; circle(p.x, p.y, R); ctx.fill();
         ctx.strokeStyle = w.evo ? 'rgba(255,209,102,0.45)' : 'rgba(255,138,61,0.35)'; ctx.lineWidth = 2; circle(p.x, p.y, R * (0.92 + 0.08 * Math.sin(G.clock * 6))); ctx.stroke();
       } else if (w.id === 'orbit' && (w.evo || w.on > 0)) {
@@ -136,7 +173,8 @@ function drawAuras() {
     }
   }
 }
-function drawPlayers() {
+function drawPlayers(sim) {
+  const G = sim.G;
   for (const p of G.players) {
     if (p.dead) {
       const pulse = 1 + 0.08 * Math.sin(G.clock * 5);
@@ -161,8 +199,8 @@ function drawPlayers() {
     if (G.players.length > 1) { ctx.font = '700 11px ' + FONT_BODY; ctx.textAlign = 'center'; ctx.fillStyle = p.color; ctx.fillText(p.name, p.x, p.y - p.r - 8); }
   }
 }
-function drawProjs() {
-  for (const pr of projs.live) {
+function drawProjs(sim) {
+  for (const pr of sim.pools.projs.live) {
     if (!pr.alive || !vis(pr.x, pr.y, 40)) continue;
     if (pr.kind === 'bullet') {
       const sp = Math.hypot(pr.vx, pr.vy) || 1;
@@ -187,7 +225,8 @@ function drawProjs() {
     }
   }
 }
-function drawEbul() {
+function drawEbul(sim) {
+  const { ebul } = sim.pools;
   ctx.fillStyle = '#ff5277'; ctx.beginPath(); let any = false;
   for (const b of ebul.live) { if (!b.alive || !vis(b.x, b.y, 10)) continue; any = true; ctx.moveTo(b.x + b.r, b.y); ctx.arc(b.x, b.y, b.r, 0, TAU); }
   if (!any) return;
@@ -197,11 +236,19 @@ function drawEbul() {
   ctx.fill();
 }
 function polyline(pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.stroke(); }
-function drawFx() {
+function drawFx(sim) {
+  const { fxs, texts } = sim.pools;
+  // Soft glow on every skill effect — the fx pool is capped low (see the
+  // 380-entry guard in combat.js's addFx callers) so shadowBlur's per-draw
+  // cost stays bounded regardless of enemy/projectile counts elsewhere.
+  // Skipped under prefers-reduced-motion, same as the existing screen-shake
+  // gating in combat.js/director.js.
+  const glow = !REDUCED;
   for (const f of fxs.live) {
     if (!f.alive) continue;
     const k = f.t / f.life, al = 1 - k, o = f.owner || f;
     ctx.globalAlpha = al;
+    if (glow) { ctx.shadowBlur = 12; ctx.shadowColor = f.color; }
     switch (f.kind) {
       case 'slash':
         ctx.fillStyle = f.color; ctx.beginPath();
@@ -230,8 +277,25 @@ function drawFx() {
         ctx.fillStyle = f.color;
         for (let j = 0; j < 5; j++) { const a = j * TAU / 5 + f.x, d = f.r * 0.6 + k * 20; ctx.fillRect(f.x + Math.cos(a) * d - 2, f.y + Math.sin(a) * d - 2, 4, 4); }
         break;
+      case 'burst': {
+        // Chest-opening flourish: a bright core flash plus long tapered
+        // spokes radiating outward, more festive than the plain kill 'pop'.
+        const rays = f.pts ? f.pts.length : 10;
+        ctx.fillStyle = f.color;
+        ctx.globalAlpha = al * (1 - k * 0.6);
+        circle(f.x, f.y, f.r * 0.5 * (1 - k * 0.7)); ctx.fill();
+        ctx.strokeStyle = f.color; ctx.lineWidth = 4 * (1 - k) + 1; ctx.lineCap = 'round';
+        for (let j = 0; j < rays; j++) {
+          const a = j * TAU / rays + f.a, len = f.r * (0.5 + 0.5 * k);
+          ctx.beginPath(); ctx.moveTo(f.x + Math.cos(a) * f.r * 0.25, f.y + Math.sin(a) * f.r * 0.25);
+          ctx.lineTo(f.x + Math.cos(a) * len, f.y + Math.sin(a) * len); ctx.stroke();
+        }
+        ctx.lineCap = 'butt';
+        break;
+      }
     }
   }
+  ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
   ctx.textAlign = 'center';
   for (const t of texts.live) {
@@ -244,9 +308,10 @@ function drawFx() {
   }
   ctx.globalAlpha = 1;
 }
-function drawIndicators() {
+function drawIndicators(sim) {
+  const G = sim.G;
   const items = [];
-  for (const g of drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, '#ffd166');
+  for (const g of sim.pools.drops.live) if (g.alive && g.kind === 'chest') items.push(g.x, g.y, CHEST_TIERS[g.tier || 1].color);
   for (const p of G.players) if (p.dead && p !== G.human) items.push(p.x, p.y, p.color);
   for (const b of G.bosses) if (b.alive) items.push(b.x, b.y, '#ff5277');
   for (let i = 0; i < items.length; i += 3) {
@@ -258,7 +323,8 @@ function drawIndicators() {
     ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-7, -8); ctx.lineTo(-7, 8); ctx.closePath(); ctx.fill(); ctx.restore();
   }
 }
-function drawHUD() {
+function drawHUD(sim) {
+  const G = sim.G;
   const h = G.human;
   ctx.fillStyle = 'rgba(13,10,31,0.85)'; ctx.fillRect(0, 0, W, 10);
   ctx.fillStyle = '#6ff3e8'; ctx.fillRect(0, 0, W * clamp(h.xp / h.xpNext, 0, 1), 10);
@@ -274,7 +340,7 @@ function drawHUD() {
   ctx.textAlign = 'right'; ctx.fillStyle = '#efe6d2'; ctx.font = '22px ' + FONT_DISP; ctx.fillText(G.kills.toLocaleString() + ' 처치', W - 14, 42);
   if (showDebug) {
     ctx.font = '500 11px ' + FONT_BODY; ctx.fillStyle = '#a59fc4';
-    ctx.fillText(`${fps} FPS  적 ${enemies.live.length}  투사체 ${projs.live.length + ebul.live.length}  (F3)`, W - 14, 60);
+    ctx.fillText(`${fps} FPS  적 ${sim.pools.enemies.live.length}  투사체 ${sim.pools.projs.live.length + sim.pools.ebul.live.length}  (F3)`, W - 14, 60);
   }
   if (h.auto) { ctx.fillStyle = '#ffd166'; ctx.font = '700 12px ' + FONT_BODY; ctx.fillText('자동 조종 중 (F2)', W - 14, 76); }
   // 파티 패널
@@ -305,37 +371,53 @@ function drawHUD() {
     ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(x, byW, s, s, 5); ctx.fill();
     ctx.lineWidth = w && w.evo ? 2.5 : 1; ctx.strokeStyle = w && w.evo ? '#ffd166' : 'rgba(239,230,210,0.22)'; ctx.stroke();
     if (!w) continue;
-    ctx.font = '22px ' + FONT_EMOJI; ctx.fillStyle = '#fff';
-    ctx.fillText(w.evo ? WEAPONS[w.id].evoIcon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3);
+    drawIcon(ctx, w.evo ? evoInfo(w).icon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3, 26);
     if (!w.evo) for (let l = 0; l < 5; l++) { ctx.fillStyle = l < w.lv ? '#6ff3e8' : 'rgba(239,230,210,0.2)'; ctx.fillRect(x + 6 + l * 6.4, byW + s - 6, 4.4, 3); }
+  }
+  // 대시 쿨다운
+  {
+    const dx0 = bx + 4 * (s + gap), dcx = dx0 + s / 2, dcy = byW + s / 2;
+    ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(dx0, byW, s, s, 5); ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(239,230,210,0.22)'; ctx.stroke();
+    const ready = h.dashCd <= 0, frac = clamp(1 - h.dashCd / DASH_CD, 0, 1);
+    if (frac > 0) {
+      ctx.strokeStyle = ready ? '#6ff3e8' : 'rgba(111,243,232,0.45)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(dcx, dcy, s / 2 - 6, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.stroke();
+    }
+    ctx.fillStyle = ready ? '#6ff3e8' : '#a59fc4'; ctx.font = '700 11px ' + FONT_BODY; ctx.fillText('대시', dcx, dcy);
   }
   for (let i = 0; i < 4; i++) {
     const q = h.passives[i], x = bx + i * (30 + 4), ps = 30;
     ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(x, byP, ps, ps, 4); ctx.fill();
     ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(155,123,255,0.35)'; ctx.stroke();
     if (!q) continue;
-    ctx.font = '15px ' + FONT_EMOJI; ctx.fillStyle = '#fff'; ctx.fillText(PASSIVES[q.id].icon, x + ps / 2, byP + ps / 2 - 2);
+    drawIcon(ctx, PASSIVES[q.id].icon, x + ps / 2, byP + ps / 2 - 2, 19);
     ctx.font = '700 9px ' + FONT_BODY; ctx.fillStyle = '#9b7bff'; ctx.fillText(q.lv, x + ps - 5, byP + ps - 5);
   }
   ctx.textBaseline = 'alphabetic';
   if (h.dead && !G.won) {
     ctx.textAlign = 'center'; ctx.font = '20px ' + FONT_DISP; ctx.fillStyle = '#ff5277';
     ctx.fillText(G.players.some(p => !p.dead) ? '동료가 영혼 오브에 닿으면 부활합니다' : '파티 전멸', W / 2, H - 60);
+    if (h.spectating) {
+      ctx.font = '600 13px ' + FONT_BODY; ctx.fillStyle = '#a59fc4';
+      ctx.fillText(`${h.spectating} 관전 중 (Tab로 전환)`, W / 2, H - 38);
+    }
   }
   if (touch.on) {
     ctx.strokeStyle = 'rgba(239,230,210,0.35)'; ctx.lineWidth = 2; circle(touch.ox, touch.oy, 50); ctx.stroke();
     ctx.fillStyle = 'rgba(111,243,232,0.5)'; circle(touch.ox + touch.x * 50, touch.oy + touch.y * 50, 18); ctx.fill();
   }
 }
-export function render() {
+export function render(sim) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#140f2b'; ctx.fillRect(0, 0, W, H);
+  const G = sim.G;
   if (!G) return;
   const sh = G.shake, ox = sh ? rand(-sh, sh) : 0, oy = sh ? rand(-sh, sh) : 0;
   const cx = G.cam.x, cy = G.cam.y;
   VX0 = cx - W / 2; VX1 = cx + W / 2; VY0 = cy - H / 2; VY1 = cy + H / 2;
   ctx.save(); ctx.translate(Math.round(W / 2 - cx + ox), Math.round(H / 2 - cy + oy));
-  drawGround(); drawDrops(); drawAuras(); drawEnemies(); drawPlayers(); drawProjs(); drawEbul(); drawFx();
+  drawGround(); drawDrops(sim); drawAuras(sim); drawEnemies(sim); drawPlayers(sim); drawProjs(sim); drawEbul(sim); drawFx(sim);
   ctx.restore();
-  if (!G.demo) { drawIndicators(); drawHUD(); }
+  if (!G.demo) { drawIndicators(sim); drawHUD(sim); }
 }

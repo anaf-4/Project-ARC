@@ -6,6 +6,7 @@
 <title>Project A.R.C.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 </head>
 <body>
 <canvas id="game"></canvas>
@@ -15,26 +16,66 @@
     <div class="logo" data-t="A.R.C.">A.R.C.</div>
     <p class="tagline">에테르 로그 코옵 프로토타입. 몰려오는 적을 버티며 무기를 진화시키고, 쓰러진 동료는 영혼 오브에 머물러 되살리세요.</p>
 
-    <h2>클래스</h2>
-    <div class="classes" id="classGrid"></div>
+    <button class="ghost" id="backBtn" style="margin-top:0" hidden>← 뒤로</button>
 
-    <h2>작전 설정</h2>
-    <div class="opts">
-      <div>
-        <div class="seg" id="partySeg"></div>
-        <div class="opthint">2인 이상은 AI 동료가 합류합니다</div>
+    <div id="screenMenu">
+      <h2>영구 강화 <span class="shards">◆ <span id="shardCount">0</span> 에테르 파편</span></h2>
+      <div class="meta" id="metaList"></div>
+      <div class="modechoice" style="margin-top:26px">
+        <button class="cta" id="soloModeBtn">싱글플레이</button>
+        <button class="cta violet" id="multiModeBtn">멀티플레이</button>
       </div>
-      <div>
-        <div class="seg" id="stageSeg"></div>
-        <div class="opthint">보스는 제한 시간의 1/3마다 등장</div>
+      <button class="ghost" id="settingsBtn" style="margin-top:14px">설정</button>
+    </div>
+
+    <div id="screenMultiChoice" hidden>
+      <h2>멀티플레이</h2>
+      <div class="modechoice">
+        <button class="cta" id="createRoomBtn">방 생성하기</button>
+        <button class="cta violet" id="joinRoomBtn">방 접속하기</button>
       </div>
     </div>
 
-    <h2>영구 강화 <span class="shards">◆ <span id="shardCount">0</span> 에테르 파편</span></h2>
-    <div class="meta" id="metaList"></div>
+    <div id="screenClassPick" hidden>
+      <div id="joinOpts" hidden>
+        <h2>방 코드</h2>
+        <input id="roomCode" placeholder="방 코드 입력" style="width:100%;background:rgba(239,230,210,.06);border:1px solid rgba(239,230,210,.2);border-radius:4px;padding:10px;color:var(--bone);font-size:14px;margin-bottom:8px">
+      </div>
 
-    <button class="cta" id="startBtn">출격</button>
-    <p class="keys"><kbd>WASD</kbd> 또는 방향키로 이동, 공격은 자동입니다. <kbd>Esc</kbd> 일시정지, <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 강화 선택, <kbd>F2</kbd> 자동 조종(테스트용). 모바일은 화면을 끌어서 이동합니다.</p>
+      <h2>클래스</h2>
+      <div class="classes" id="classGrid"></div>
+
+      <div id="soloOpts">
+        <h2>작전 설정</h2>
+        <div class="opts">
+          <div>
+            <div class="seg" id="stageSeg"></div>
+            <div class="opthint">보스는 제한 시간의 1/3마다 등장</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="createOpts" hidden>
+        <h2>최대 인원</h2>
+        <div class="seg" id="maxPlayersSeg"></div>
+      </div>
+
+      <button class="cta" id="classPickConfirmBtn" style="margin-top:20px">출격</button>
+    </div>
+
+    <div id="screenWaiting" hidden>
+      <h2>대기실 <span class="shards" id="waitingRoomCode"></span></h2>
+      <div class="meta" id="playerList"></div>
+      <div id="hostControls" hidden>
+        <h2>최대 인원</h2>
+        <div class="seg" id="waitingMaxSeg"></div>
+        <button class="cta" id="startGameBtn" style="margin-top:20px">게임 시작</button>
+      </div>
+      <p class="opthint" id="waitingHint">호스트가 게임을 시작하기를 기다리는 중...</p>
+    </div>
+
+    <p class="keys"><kbd>WASD</kbd> 또는 방향키로 이동, 공격은 자동입니다. <kbd>Esc</kbd> 일시정지, <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> 강화 선택, <kbd>F2</kbd> 자동 조종(테스트용). 모바일은 화면을 끌어서 이동합니다. 기본 키는 설정에서 바꿀 수 있습니다.</p>
+    <p class="keys" style="margin-top:6px;font-size:11px;opacity:.6">아이콘: Lorc, Delapouite, Skoll, Willdabeast (game-icons.net, CC BY 3.0)</p>
   </div>
 </div>
 
@@ -54,6 +95,7 @@
     <div class="panel"><h3>진화 조합표</h3><p style="font-size:12px;color:var(--mute);margin-bottom:8px">무기를 Lv 5까지 올리고 짝 패시브를 보유한 상태에서 보스나 정예가 떨어뜨린 에테르 상자를 열면 진화합니다.</p><table class="recipes" id="pRecipes"></table></div>
     <div class="btnrow">
       <button class="cta" id="resumeBtn">계속하기</button>
+      <button class="ghost" id="pauseSettingsBtn" style="margin-top:0">설정</button>
       <button class="ghost" id="quitBtn" style="margin-top:0">포기하고 정산</button>
     </div>
   </div>
@@ -66,6 +108,31 @@
     <div class="panel"><div class="stats" id="rStats"></div></div>
     <div class="panel"><h3>최종 빌드</h3><div class="build" id="rBuild"></div></div>
     <div class="btnrow"><button class="cta" id="toLobbyBtn">로비로 돌아가기</button></div>
+  </div>
+</div>
+
+<div id="settings" class="modal" role="dialog" aria-modal="true" aria-labelledby="stTitle">
+  <div class="box" style="width:min(560px,100%)">
+    <div class="mtitle" id="stTitle" style="font-size:36px">설정</div>
+    <div class="panel">
+      <h3>프레임 제한</h3>
+      <div class="seg" id="fpsSeg"></div>
+    </div>
+    <div class="panel">
+      <h3>볼륨</h3>
+      <div class="volrow"><span>메인</span><input type="range" id="volMaster" min="0" max="100" step="1"><b id="volMasterN"></b></div>
+      <div class="volrow"><span>음악</span><input type="range" id="volMusic" min="0" max="100" step="1"><b id="volMusicN"></b></div>
+      <div class="volrow"><span>타격음</span><input type="range" id="volSfx" min="0" max="100" step="1"><b id="volSfxN"></b></div>
+    </div>
+    <div class="panel">
+      <h3>키 설정</h3>
+      <div id="keybindList"></div>
+      <p class="opthint">방향키는 항상 이동에, 넘버패드 1/2/3은 항상 강화 선택에 함께 사용할 수 있습니다.</p>
+    </div>
+    <div class="btnrow">
+      <button class="ghost" id="resetKeysBtn">키 초기화</button>
+      <button class="cta" id="closeSettingsBtn">닫기</button>
+    </div>
   </div>
 </div>
 

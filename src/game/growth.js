@@ -1,15 +1,15 @@
-import { REDUCED } from '../core/utils.js';
-import { WEAPONS, PASSIVES, xpNeed } from '../data/tables.js';
-import { G, newWeapon, recompute } from './state.js';
+import { REDUCED, TAU } from '../core/utils.js';
+import { WEAPONS, PASSIVES, xpNeed, CHEST_TIERS, evoInfo } from '../data/tables.js';
+import { newWeapon, recompute } from './state.js';
 import { addFx } from './combat.js';
-import { banner } from '../ui/banner.js';
 
-export function gainXp(p, v) {
+export function gainXp(sim, p, v) {
+  const G = sim.G;
   p.xp += v * p.s.xpMul * G.xpMul;
   while (p.xp >= p.xpNext) {
     p.xp -= p.xpNext; p.level++; p.xpNext = xpNeed(p.level);
-    if (p.auto) botLevel(p); else p.pending++;
-    addFx('ring', p.x, p.y, { r: 46, life: 0.45, color: '#6ff3e8', owner: p });
+    if (p.auto) botLevel(sim, p); else p.pending++;
+    addFx(sim, 'ring', p.x, p.y, { r: 46, life: 0.45, color: '#6ff3e8', owner: p });
   }
 }
 export function getOptions(p, n) {
@@ -28,43 +28,77 @@ export function getOptions(p, n) {
   if (!out.length) { out.push({ kind: 'heal' }); if (n > 1) out.push({ kind: 'shard' }); }
   return out;
 }
-export function applyOption(p, o) {
+export function applyOption(sim, p, o) {
   if (o.kind === 'wnew') p.weapons.push(newWeapon(o.id));
   else if (o.kind === 'wup') { const w = p.weapons.find(w => w.id === o.id); if (w) w.lv++; }
   else if (o.kind === 'pnew') p.passives.push({ id: o.id, lv: 1 });
   else if (o.kind === 'pup') { const q = p.passives.find(q => q.id === o.id); if (q) q.lv++; }
   else if (o.kind === 'heal') p.hp = Math.min(p.s.maxHp, p.hp + p.s.maxHp * 0.3);
-  else if (o.kind === 'shard') G.bonusShards += 10;
-  recompute(p);
+  else if (o.kind === 'shard') sim.G.bonusShards += 10;
+  recompute(sim, p);
 }
 export function optName(o) {
   if (o.kind === 'wnew' || o.kind === 'wup') return WEAPONS[o.id].name;
   if (o.kind === 'pnew' || o.kind === 'pup') return PASSIVES[o.id].name;
   return o.kind === 'heal' ? '응급 회복' : '에테르 파편';
 }
-export function botLevel(p) {
+export function optIcon(o) {
+  if (o.kind === 'wnew' || o.kind === 'wup') return WEAPONS[o.id].icon;
+  if (o.kind === 'pnew' || o.kind === 'pup') return PASSIVES[o.id].icon;
+  return o.kind === 'heal' ? '🧪' : '◆';
+}
+export function botLevel(sim, p) {
   const opts = getOptions(p, 3);
   let best = opts[0], bs = -1;
   for (const o of opts) {
     let sc = Math.random();
     if (o.kind === 'wup') sc += 1.2;
     if (o.kind === 'wnew') sc += 0.6;
-    if ((o.kind === 'pnew' || o.kind === 'pup') && p.weapons.some(w => WEAPONS[w.id].pair === o.id)) sc += 1.5;
+    if ((o.kind === 'pnew' || o.kind === 'pup') && p.weapons.some(w => WEAPONS[w.id].pair === o.id || WEAPONS[w.id].altEvos?.some(a => a.pair === o.id))) sc += 1.5;
+    if (o.kind === 'wnew' && p.weapons.some(w => WEAPONS[w.id].comboWith === o.id || WEAPONS[o.id].comboWith === w.id)) sc += 1.3;
     if (sc > bs) { bs = sc; best = o; }
   }
-  applyOption(p, best);
+  applyOption(sim, p, best);
 }
-export function openChest(p) {
-  addFx('ring', p.x, p.y, { r: 150, life: 0.8, color: '#ffd166' });
-  if (!REDUCED) G.shake = Math.max(G.shake, 5);
-  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && p.passives.some(q => q.id === WEAPONS[w.id].pair));
-  if (w) {
-    w.evo = true; w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
+export function openChest(sim, p, tier = 1) {
+  const G = sim.G;
+  const col = CHEST_TIERS[tier].color;
+  addFx(sim, 'ring', p.x, p.y, { r: 70, life: 0.4, color: col });
+  addFx(sim, 'ring', p.x, p.y, { r: 170, life: 0.9, color: col });
+  addFx(sim, 'burst', p.x, p.y, { r: 130, life: 0.6, color: col, a: Math.random() * TAU });
+  if (!REDUCED) G.shake = Math.max(G.shake, 8);
+  // Evolution unlocks the usual way (paired passive at any level, or —
+  // for a weapon tagged comboWith — by carrying the combo partner weapon
+  // instead), OR via one of altEvos: a *different* skill unlocking a
+  // *different* evolved form of the same weapon. -1 = primary, >=0 = which
+  // altEvos entry. Checked in order; the first satisfied path wins.
+  const evoMatch = (w) => {
     const D = WEAPONS[w.id];
-    if (!G.demo) banner(`${p === G.human ? '' : p.name + ' '}진화! ${D.name} → ${D.evo}`, 'evo');
+    if (p.passives.some(q => q.id === D.pair) || (D.comboWith && p.weapons.some(w2 => w2.id === D.comboWith))) return -1;
+    if (D.altEvos) for (let i = 0; i < D.altEvos.length; i++) {
+      const a = D.altEvos[i];
+      if ((a.pair && p.passives.some(q => q.id === a.pair)) || (a.comboWith && p.weapons.some(w2 => w2.id === a.comboWith))) return i;
+    }
+    return null;
+  };
+  const w = p.weapons.find(w => !w.evo && w.lv >= 5 && evoMatch(w) !== null);
+  if (w) {
+    const match = evoMatch(w);
+    w.evo = true; if (match >= 0) w.altIdx = match;
+    w.t = 0; w.on = 0; w.off = 0; w.hits.clear();
+    const info = evoInfo(w);
+    if (!G.demo) sim.onBanner?.(`${p === G.human ? '' : p.name + ' '}진화! ${WEAPONS[w.id].name} → ${info.name}`, 'evo');
+    sim.onReward?.(tier, [{ icon: info.icon, name: info.name }]);
     return;
   }
-  const gains = [];
-  for (let i = 0; i < 2; i++) { const o = getOptions(p, 1)[0]; applyOption(p, o); gains.push(optName(o)); }
-  if (!G.demo && p === G.human) banner(`에테르 상자: ${gains.join(', ')} 강화`, 'good');
+  // Higher-tier chests offer more skills at once (up to the tier-4 cap) —
+  // this is the whole point of the tier system once a weapon-evolution
+  // isn't on offer instead.
+  const gains = [], items = [];
+  for (let i = 0; i < tier; i++) {
+    const o = getOptions(p, 1)[0]; applyOption(sim, p, o);
+    gains.push(optName(o)); items.push({ icon: optIcon(o), name: optName(o) });
+  }
+  if (!G.demo && p === G.human) sim.onBanner?.(`${CHEST_TIERS[tier].name} 에테르 상자: ${gains.join(', ')} 강화`, 'good');
+  sim.onReward?.(tier, items);
 }

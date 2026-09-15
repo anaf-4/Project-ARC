@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: project-arc-server
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run server:dev
+    envVars:
+      - key: NODE_VERSION
+        value: 20
