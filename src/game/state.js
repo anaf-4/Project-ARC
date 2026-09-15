@@ -12,7 +12,7 @@ export function newGame(sim, cfg) {
     xpMul: quick ? 1.7 : 1, bossMul: quick ? 0.6 : 1, partyN: n, partyMul: 1 + 0.45 * (n - 1),
     players: [], human: null, cam: { x: 0, y: 0 }, kills: 0, mode: 'play',
     spawnAcc: 0, nextRush: cfg.stage / 15, rush: 0, bossIdx: 0, bossTimes: [cfg.stage / 3, cfg.stage * 2 / 3, cfg.stage], bosses: [],
-    won: false, ending: 0, shake: 0, uid: 1, bonusShards: 0, rerolls: sim.meta.lv.reroll || 0,
+    won: false, ending: 0, over: false, shake: 0, uid: 1, bonusShards: 0, rerolls: sim.meta.lv.reroll || 0,
     viewW: 1280, viewH: 800,
   };
   const others = shuffle(Object.keys(CLASSES).filter(k => k !== cfg.cls));

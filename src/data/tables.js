@@ -36,7 +36,7 @@ export const WEAPONS = {
     evoS: { dmg: 50, cd: 1.2, n: 3, r: 100, zone: true },
     altEvos: [{ pair: 'vampiric', evo: '불사의 화신', evoIcon: 'evo_fireball_alt',
       evoDesc: '폭발에 휘말린 적 하나당 체력을 회복합니다.',
-      evoS: { dmg: 45, cd: 1.3, n: 2, r: 110, heal: 3 } }] },
+      evoS: { dmg: 45, cd: 1.3, n: 2, r: 110, heal: 1.2 } }] },
   orbit: { name: '오비탈 코어', icon: 'weapon_orbit', pair: 'boots', evo: '은하 궤도', evoIcon: 'evo_orbit',
     desc: '주위를 도는 코어가 일정 시간 적을 갈아냅니다.', evoDesc: '코어가 멈추지 않고 영구히 회전합니다.',
     lv: [{ dmg: 9, cd: 1.6, n: 2, dur: 3, r: 70 }, { dmg: 11, cd: 1.5, n: 2, dur: 3.3, r: 72 }, { dmg: 13, cd: 1.4, n: 3, dur: 3.6, r: 76 }, { dmg: 15, cd: 1.3, n: 3, dur: 4, r: 80 }, { dmg: 18, cd: 1.2, n: 4, dur: 4.5, r: 84 }],
@@ -90,7 +90,7 @@ export const PASSIVES = {
   plate: { name: '판금 갑옷', icon: 'p_plate', desc: '방어력 +2', apply: (s, l) => { s.armor += 2 * l; } },
   coil: { name: '초전도 코일', icon: 'p_coil', desc: '투사체 속도 +15%', apply: (s, l) => { s.projSpeed *= 1 + 0.15 * l; } },
   killer: { name: '필살의 감각', icon: 'p_killer', desc: '치명타 피해 +30%', apply: (s, l) => { s.critMul += 0.3 * l; } },
-  vampiric: { name: '흡혈의 인장', icon: 'p_vampiric', desc: '처치 시 체력 +1.2 회복', apply: (s, l) => { s.lifesteal += 1.2 * l; } },
+  vampiric: { name: '흡혈의 인장', icon: 'p_vampiric', desc: '처치 시 체력 +0.5 회복', apply: (s, l) => { s.lifesteal += 0.5 * l; } },
   mercy: { name: '소생의 인장', icon: 'p_mercy', desc: '동료 부활 속도 +20%', apply: (s, l) => { s.reviveMul *= 1 + 0.2 * l; } },
   magazine: { name: '탄창', icon: 'p_magazine', desc: '투사체 수 +1, Lv 4부터 +2', apply: (s, l) => { s.amount += l >= 4 ? 2 : 1; } },
   magnet: { name: '에테르 자석', icon: 'p_magnet', desc: '획득 범위 +25%', apply: (s, l) => { s.magnet *= 1 + 0.25 * l; } },
@@ -103,7 +103,6 @@ export const META = [
   { id: 'swift', name: '기동력', icon: 'm_swift', desc: '이동 속도 +4%', max: 5, apply: (s, l) => { s.speed *= 1 + 0.04 * l; } },
   { id: 'greed', name: '성장', icon: 'm_greed', desc: '경험치 획득 +6%', max: 5, apply: (s, l) => { s.xpMul *= 1 + 0.06 * l; } },
   { id: 'grip', name: '인력', icon: 'm_grip', desc: '획득 범위 +10%', max: 5, apply: (s, l) => { s.magnet *= 1 + 0.1 * l; } },
-  { id: 'medkit', name: '구급 훈련', icon: 'm_medkit', desc: '동료 부활 속도 +15%', max: 5, apply: (s, l) => { s.reviveMul *= 1 + 0.15 * l; } },
   { id: 'reroll', name: '재추첨', icon: 'm_reroll', desc: '레벨업 다시 뽑기 +1회', max: 3, baseCost: 300, apply: () => { } },
 ];
 export const metaCost = (m, l) => Math.floor((m.baseCost || 25) * Math.pow(1.7, l));

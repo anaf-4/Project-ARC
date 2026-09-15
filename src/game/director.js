@@ -19,9 +19,9 @@ export function rollType(d) {
   return 'slime';
 }
 export function spawnEnemy(sim, tid, x, y, m) {
-  const T = ETYPES[tid], G = sim.G, e = sim.pools.enemies.get(), d = G.diff, hs = (1 + d * 0.2 + d * d * 0.017) * G.partyMul;
+  const T = ETYPES[tid], G = sim.G, e = sim.pools.enemies.get(), d = G.diff, hs = (1 + d * 0.3 + d * d * 0.026) * G.partyMul;
   e.tid = tid; e.uid = G.uid++; e.x = x; e.y = y; e.kx = 0; e.ky = 0; e.r = T.r; e.color = T.color; e.fx = 0; e.fy = 1;
-  e.speed = T.speed * (1 + d * 0.012) * rand(0.9, 1.12); e.maxHp = e.hp = T.hp * hs; e.dmg = T.dmg * (1 + d * 0.06); e.xp = T.xp;
+  e.speed = T.speed * (1 + d * 0.012) * rand(0.9, 1.12); e.maxHp = e.hp = T.hp * hs; e.dmg = T.dmg * (1 + d * 0.09); e.xp = T.xp;
   e.flash = 0; e.elite = false; e.boss = false; e.final = false; e.name = ''; e.shootT = rand(1.5, 3);
   e.burnT = 0; e.burnDps = 0; e.burnAcc = 0; e.burnOwner = null; e.phase = Math.random() * TAU;
   if (m) {

@@ -40,7 +40,6 @@ import m_might from '../assets/icons/m_might.svg';
 import m_swift from '../assets/icons/m_swift.svg';
 import m_greed from '../assets/icons/m_greed.svg';
 import m_grip from '../assets/icons/m_grip.svg';
-import m_medkit from '../assets/icons/m_medkit.svg';
 import m_reroll from '../assets/icons/m_reroll.svg';
 import p_plate from '../assets/icons/p_plate.svg';
 import p_coil from '../assets/icons/p_coil.svg';
@@ -55,7 +54,7 @@ export const ICONS = {
   weapon_blade, weapon_rail, weapon_wand, weapon_fireball, weapon_orbit, weapon_aura, weapon_boomerang, weapon_thunder, weapon_trap,
   evo_blade, evo_rail, evo_wand, evo_fireball, evo_orbit, evo_aura, evo_boomerang, evo_thunder, evo_trap,
   p_heart, p_scope, p_book, p_catalyst, p_boots, p_regen, p_magazine, p_magnet, p_rune, p_guard,
-  m_hp, m_might, m_swift, m_greed, m_grip, m_medkit, m_reroll,
+  m_hp, m_might, m_swift, m_greed, m_grip, m_reroll,
   p_plate, p_coil, p_killer, p_vampiric, p_mercy,
   evo_fireball_alt, evo_boomerang_alt, evo_wand_alt,
 };

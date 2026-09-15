@@ -21,7 +21,15 @@ function ensureCtx() {
   masterGain = ctx.createGain();
   musicGain = ctx.createGain();
   sfxGain = ctx.createGain();
-  musicGain.connect(masterGain); sfxGain.connect(masterGain); masterGain.connect(ctx.destination);
+  // A dozen overlapping hit blips plus the music drone can sum to a peak
+  // above 1.0 with nothing else in the chain — the destination just clips
+  // that silently, which is what "harsh"/"painful" digital distortion
+  // actually sounds like. One limiter here is a single, permanent fix for
+  // that regardless of how many sources happen to stack in a given frame.
+  const limiter = ctx.createDynamicsCompressor();
+  limiter.threshold.value = -8; limiter.knee.value = 6; limiter.ratio.value = 12;
+  limiter.attack.value = 0.003; limiter.release.value = 0.15;
+  musicGain.connect(masterGain); sfxGain.connect(masterGain); masterGain.connect(limiter); limiter.connect(ctx.destination);
   return ctx;
 }
 
@@ -79,10 +87,10 @@ export function startMusic() {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = i % 2 ? 'sine' : 'triangle';
     o.frequency.value = f;
-    g.gain.value = 0.06;
+    g.gain.value = 0.04;
     const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
     lfo.frequency.value = 0.05 + i * 0.02;
-    lfoGain.gain.value = 4;
+    lfoGain.gain.value = 2.5;
     lfo.connect(lfoGain); lfoGain.connect(o.detune);
     o.connect(g); g.connect(musicGain);
     o.start(); lfo.start();

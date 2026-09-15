@@ -51,25 +51,39 @@ for (const bus of ['master', 'music', 'sfx']) {
 }
 
 let capturingAction = null;
+let onCaptureKey = null;
+// Guaranteed cleanup for the "waiting for a key to rebind" mode — needed
+// both when a key is actually pressed (normal path, below) AND when the
+// user instead closes the settings panel with the mouse mid-capture. That
+// second path used to never reset capturingKeybind: input.js's own keydown
+// handler bails out unconditionally at the very top while it's true, which
+// silently killed ALL keyboard input (movement, pause, everything) for the
+// rest of the session — the settings panel itself still visibly closed via
+// the mouse click, but the game underneath looked frozen/uncontrollable.
+function cancelCapture() {
+  if (!capturingAction) return;
+  window.removeEventListener('keydown', onCaptureKey, true);
+  capturingAction = null; onCaptureKey = null;
+  setCapturingKeybind(false);
+  renderKeybinds();
+}
 $('keybindList').addEventListener('click', e => {
   const b = e.target.closest('.kbbtn'); if (!b || capturingAction) return;
   capturingAction = b.dataset.action;
   setCapturingKeybind(true);
   b.textContent = '키 입력...'; b.classList.add('waiting');
-  const onKey = (ev) => {
+  onCaptureKey = (ev) => {
     ev.preventDefault();
     if (ev.code !== 'Escape') setKeybind(capturingAction, ev.code);
-    capturingAction = null;
-    setCapturingKeybind(false);
-    window.removeEventListener('keydown', onKey, true);
-    renderKeybinds();
+    cancelCapture();
   };
   // Capture phase so this always sees the key before anything else does.
-  window.addEventListener('keydown', onKey, true);
+  window.addEventListener('keydown', onCaptureKey, true);
 });
 $('resetKeysBtn').addEventListener('click', () => { resetKeybinds(); renderKeybinds(); });
 
 function openSettings() { renderSettings(); $('settings').classList.add('on'); }
+export function closeSettings() { cancelCapture(); $('settings').classList.remove('on'); }
 $('settingsBtn').addEventListener('click', openSettings);
 // Reachable mid-run too (solo pause and the multiplayer "check my build"
 // overlay both use the same #pause modal — see ui/pause.js), not just from
@@ -77,4 +91,4 @@ $('settingsBtn').addEventListener('click', openSettings);
 // but #settings comes later in the DOM so it paints on top without needing
 // to hide #pause first; closing it just reveals pause again underneath.
 $('pauseSettingsBtn').addEventListener('click', openSettings);
-$('closeSettingsBtn').addEventListener('click', () => { $('settings').classList.remove('on'); });
+$('closeSettingsBtn').addEventListener('click', closeSettings);

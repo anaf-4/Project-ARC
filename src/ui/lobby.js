@@ -14,7 +14,7 @@ import { showChestCard } from './chestcard.js';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
 
-export const sel = { cls: 'vanguard', party: 1, stage: 900, maxPlayers: 4 };
+export const sel = { cls: 'vanguard', stage: 900, maxPlayers: 4 };
 let classPickMode = 'solo'; // 'solo' | 'create' | 'join'
 let mp = null; // the Colyseus room once connected — always read mp.state live (it's a getter), never cache it
 
@@ -40,7 +40,6 @@ export function renderLobby() {
       <span class="cdesc">${c.desc}</span>
       <span class="cmeta">${iconHTML(WEAPONS[c.weapon].icon)} ${WEAPONS[c.weapon].name}로 시작. ${c.traits}</span>
     </button>`).join('');
-  $('partySeg').innerHTML = [1, 2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.party === n}">${n === 1 ? '솔로' : n + '인'}</button>`).join('');
   $('stageSeg').innerHTML = [[360, '퀵 6분'], [900, '표준 15분'], [1800, '롱 30분']].map(([s, l]) => `<button data-s="${s}" aria-pressed="${sel.stage === s}">${l}</button>`).join('');
   $('maxPlayersSeg').innerHTML = [2, 3, 4].map(n => `<button data-n="${n}" aria-pressed="${sel.maxPlayers === n}">${n}인</button>`).join('');
   $('shardCount').textContent = sim.meta.shards.toLocaleString();
@@ -52,7 +51,6 @@ export function renderLobby() {
   }).join('');
 }
 $('classGrid').addEventListener('click', e => { const b = e.target.closest('.cls'); if (b) { sel.cls = b.dataset.id; renderLobby(); } });
-$('partySeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sel.party = +b.dataset.n; renderLobby(); } });
 $('stageSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sel.stage = +b.dataset.s; renderLobby(); } });
 $('maxPlayersSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { sel.maxPlayers = +b.dataset.n; renderLobby(); } });
 $('metaList').addEventListener('click', e => {
@@ -204,7 +202,7 @@ $('startGameBtn').addEventListener('click', () => { if (mp) startGame(mp); });
 // ---------------- 솔로 ----------------
 export function startRun() {
   $('lobby').classList.remove('on');
-  newGame(sim, { cls: sel.cls, party: sel.party, stage: sel.stage });
+  newGame(sim, { cls: sel.cls, party: 1, stage: sel.stage });
   $('pauseBtn').classList.add('on');
   banner('에테르 결정을 모아 성장하세요', 'good');
 }

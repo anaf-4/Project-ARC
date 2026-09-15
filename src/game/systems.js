@@ -7,7 +7,7 @@ import { gainXp, openChest } from './growth.js';
 
 const DASH_SPEED = 1500;
 const DASH_TIME = 0.16;
-const DASH_CD = 3.2;
+export const DASH_CD = 3.2;
 // Called from a dash request (client's own key for solo, a network message
 // for multiplayer — see game/input.js and server/rooms/GameRoom.js) rather
 // than threaded through the per-tick movement input, since a dash is a
@@ -168,7 +168,11 @@ function updateEnemies(sim, dt) {
       e.spin += dt;
       if (e.dashT > 0) { e.dashT -= dt; vx = e.dvx; vy = e.dvy; }
       else if (e.teleT > 0) { e.teleT -= dt; vx = vy = 0; if (e.teleT <= 0) { e.dashT = 0.75; e.dvx = e.tdx * e.speed * 5.5; e.dvy = e.tdy * e.speed * 5.5; } }
-      else { e.dashCd -= dt; if (e.dashCd <= 0 && td < 650) { e.dashCd = rand(5.5, 7.5); e.teleT = 0.7; e.tdx = dx; e.tdy = dy; } }
+      // No upper range gate here on purpose: this lunge is the boss's only
+      // way to close distance on a player who kites far away (its normal
+      // chase speed alone can never catch up), so it has to fire regardless
+      // of how far td has grown, not just when already close.
+      else { e.dashCd -= dt; if (e.dashCd <= 0) { e.dashCd = rand(5.5, 7.5); e.teleT = 0.7; e.tdx = dx; e.tdy = dy; } }
       e.burstT -= dt;
       if (e.burstT <= 0) {
         e.burstT = e.burstCd;
@@ -281,7 +285,7 @@ export function update(sim, dt, input = noInput) {
   const h = G.human, k = Math.min(1, dt * 8);
   G.cam.x = lerp(G.cam.x, h.x, k); G.cam.y = lerp(G.cam.y, h.y, k);
   G.shake = Math.max(0, G.shake - dt * 20);
-  if (G.ending > 0) { G.ending -= dt; if (G.ending <= 0) sim.onGameOver?.(); }
+  if (G.ending > 0) { G.ending -= dt; if (G.ending <= 0) { G.over = true; sim.onGameOver?.(); } }
   else if (!G.won && G.players.every(p => p.dead)) { G.ending = 1.6; if (!G.demo) sim.onBanner?.('파티 전멸', 'danger'); }
   // Only non-auto (real, human-controlled) players ever accumulate pending
   // level-ups — bots resolve instantly inside gainXp(). awaitingLevelUp
@@ -292,8 +296,13 @@ export function update(sim, dt, input = noInput) {
   // has no such pause — the shared server tick never stops for one
   // player's choice — so the flag is the only thing preventing a message
   // flood there. ui/levelup.js and GameRoom's chooseLevelUp handler both
-  // clear it when a choice is applied.
-  if (!G.demo && G.ending <= 0) {
+  // clear it when a choice is applied. G.over additionally guards the exact
+  // tick G.ending crosses to 0: onGameOver fires above on that same tick,
+  // and without this check a player with a pending level-up at that instant
+  // would still get onLevelUp fired right after — reopening the level-up
+  // modal (and stomping G.mode back to 'levelup') on top of the just-shown
+  // result screen, which is how it used to get stuck open.
+  if (!G.demo && !G.over && G.ending <= 0) {
     for (const p of G.players) {
       if (p.auto || p.dead || p.pending <= 0 || p.awaitingLevelUp) continue;
       p.awaitingLevelUp = true;

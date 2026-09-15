@@ -1,9 +1,10 @@
 import { cv, ctx, W, H, DPR } from '../core/canvas.js';
-import { TAU, rand, clamp, FONT_BODY, FONT_DISP, fmt } from '../core/utils.js';
+import { TAU, rand, clamp, REDUCED, FONT_BODY, FONT_DISP, fmt } from '../core/utils.js';
 import { CLASSES, WEAPONS, PASSIVES, ETYPES, ENEMY_KINDS, CHEST_TIERS, evoInfo } from '../data/tables.js';
 import { wst } from '../game/weapons.js';
 import { drawIcon } from '../data/icons.js';
 import { touch } from '../game/input.js';
+import { DASH_CD } from '../game/systems.js';
 
 let VX0 = 0, VY0 = 0, VX1 = 0, VY1 = 0, showDebug = true;
 export function toggleDebug() { showDebug = !showDebug; }
@@ -32,11 +33,11 @@ function drawGround() {
   const S = 64;
   for (let gx = Math.floor(VX0 / S) * S; gx < VX1; gx += S) for (let gy = Math.floor(VY0 / S) * S; gy < VY1; gy += S) ctx.fillRect(gx - 1, gy - 1, 2, 2);
 }
-function shapePath(shape, x, y, r, ph) {
-  if (shape === 'circle') { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU); }
-  else if (shape === 'diamond') { const wv = 1.1 + Math.sin(ph * 12) * 0.35; ctx.moveTo(x, y - r); ctx.lineTo(x + r * wv, y); ctx.lineTo(x, y + r * 0.8); ctx.lineTo(x - r * wv, y); ctx.closePath(); }
-  else if (shape === 'square') { ctx.rect(x - r, y - r, r * 2, r * 2); }
-  else { ctx.moveTo(x, y - r * 1.2); ctx.lineTo(x + r, y + r * 0.8); ctx.lineTo(x - r, y + r * 0.8); ctx.closePath(); }
+function shapeInto(p, shape, x, y, r, ph) {
+  if (shape === 'circle') { p.moveTo(x + r, y); p.arc(x, y, r, 0, TAU); }
+  else if (shape === 'diamond') { const wv = 1.1 + Math.sin(ph * 12) * 0.35; p.moveTo(x, y - r); p.lineTo(x + r * wv, y); p.lineTo(x, y + r * 0.8); p.lineTo(x - r * wv, y); p.closePath(); }
+  else if (shape === 'square') { p.rect(x - r, y - r, r * 2, r * 2); }
+  else { p.moveTo(x, y - r * 1.2); p.lineTo(x + r, y + r * 0.8); p.lineTo(x - r, y + r * 0.8); p.closePath(); }
 }
 function drawDrops(sim) {
   const { drops } = sim.pools;
@@ -67,25 +68,44 @@ function drawDrops(sim) {
     }
   }
 }
+// Used to build a single fill/stroke pass per enemy type below instead of
+// one full scan of the whole live-enemy list per type (was 5 scans just for
+// fills, plus 3 more for eyes/flash/elite-boss — 8 full passes total, which
+// mattered once enemy counts got into the hundreds). One scan now
+// accumulates every type's Path2D, the eye path, the flash path and a halo
+// path together; a handful of trivial per-type loops fill/stroke them after.
 function drawEnemies(sim) {
   const G = sim.G, L = sim.pools.enemies.live;
+  const typePaths = {}; for (const tid of ENEMY_KINDS) typePaths[tid] = new Path2D();
+  const haloPath = new Path2D(); let anyHalo = false;
+  const eyePath = new Path2D(); let anyEye = false;
+  const flashPath = new Path2D(); let anyFlash = false;
+  const specials = [];
+
+  for (const e of L) {
+    if (!e.alive) continue;
+    if (e.boss) { specials.push(e); continue; }
+    if (!vis(e.x, e.y, e.r)) { if (e.elite) specials.push(e); continue; }
+    const ex = e.x + e.fx * e.r * 0.4, ey = e.y + e.fy * e.r * 0.4;
+    eyePath.moveTo(ex + 2.5, ey); eyePath.arc(ex, ey, 2.5, 0, TAU); anyEye = true;
+    if (e.elite) { specials.push(e); continue; }
+    const ph = e.phase + G.clock;
+    haloPath.moveTo(e.x + e.r + 3, e.y); haloPath.arc(e.x, e.y, e.r + 3, 0, TAU); anyHalo = true;
+    shapeInto(typePaths[e.tid], ETYPES[e.tid].shape, e.x, e.y, e.r, ph);
+    if (e.flash > 0) { shapeInto(flashPath, ETYPES[e.tid].shape, e.x, e.y, e.r, ph); anyFlash = true; }
+  }
+  // 배경과의 명암 대비를 위해 일반 몹 아래에 어두운 받침을 먼저 깐다 (엘리트/
+  // 보스는 이미 자기 색의 후광이 있어 따로 필요 없음)
+  if (anyHalo) { ctx.fillStyle = 'rgba(8,5,18,0.55)'; ctx.fill(haloPath); }
   for (const tid of ENEMY_KINDS) {
-    const T = ETYPES[tid]; ctx.beginPath(); let any = false;
-    for (const e of L) {
-      if (!e.alive || e.tid !== tid || e.elite || e.boss || !vis(e.x, e.y, e.r)) continue;
-      any = true; shapePath(T.shape, e.x, e.y, e.r, e.phase + G.clock);
-    }
-    if (any) { ctx.fillStyle = T.color; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = T.edge; ctx.stroke(); }
+    ctx.fillStyle = ETYPES[tid].color; ctx.fill(typePaths[tid]);
+    ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(10,6,20,0.9)'; ctx.stroke(typePaths[tid]);
   }
   // 눈: 목표를 향한 작은 슬릿
-  ctx.fillStyle = '#140f2b'; ctx.beginPath();
-  for (const e of L) { if (!e.alive || e.boss || !vis(e.x, e.y, e.r)) continue; const ex = e.x + e.fx * e.r * 0.4, ey = e.y + e.fy * e.r * 0.4; ctx.moveTo(ex + 2.5, ey); ctx.arc(ex, ey, 2.5, 0, TAU); }
-  ctx.fill();
+  if (anyEye) { ctx.fillStyle = '#140f2b'; ctx.fill(eyePath); }
   // 피격 플래시
-  ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.beginPath(); let fl = false;
-  for (const e of L) { if (!e.alive || e.flash <= 0 || e.boss || e.elite || !vis(e.x, e.y, e.r)) continue; fl = true; shapePath(ETYPES[e.tid].shape, e.x, e.y, e.r, e.phase + G.clock); }
-  if (fl) ctx.fill();
-  for (const e of L) {
+  if (anyFlash) { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill(flashPath); }
+  for (const e of specials) {
     if (!e.alive || !vis(e.x, e.y, e.r + 40)) continue;
     if (e.elite) {
       ctx.fillStyle = 'rgba(255,209,102,0.16)'; circle(e.x, e.y, e.r + 12 + Math.sin(G.clock * 6) * 3); ctx.fill();
@@ -118,7 +138,14 @@ function drawBoss(sim, e) {
   ctx.fillStyle = e.color; circle(e.x + e.fx * e.r * 0.2, e.y + e.fy * e.r * 0.2, e.r * (0.3 + 0.05 * Math.sin(G.clock * 8))); ctx.fill();
 }
 function hpBar(x, y, w, r, col) {
-  ctx.fillStyle = 'rgba(13,10,31,0.8)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
+  // The depleted-health track used to be drawn near-black (rgba(13,10,31,..)),
+  // almost the same tone as the world's own clear color — against a dark
+  // background tile the bar's own "empty" portion was nearly invisible, so
+  // there was nothing showing where the bar even started/ended. A lighter
+  // translucent track plus a crisp dark outline keeps the bar readable
+  // against any background, ground clutter included.
+  ctx.fillStyle = 'rgba(239,230,210,0.22)'; ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
+  ctx.strokeStyle = 'rgba(10,6,20,0.7)'; ctx.lineWidth = 1; ctx.strokeRect(x - w / 2 - 1.5, y - 1.5, w + 3, 7);
   ctx.fillStyle = col; ctx.fillRect(x - w / 2, y, w * clamp(r, 0, 1), 4);
 }
 function drawAuras(sim) {
@@ -211,10 +238,17 @@ function drawEbul(sim) {
 function polyline(pts) { ctx.beginPath(); ctx.moveTo(pts[0], pts[1]); for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]); ctx.stroke(); }
 function drawFx(sim) {
   const { fxs, texts } = sim.pools;
+  // Soft glow on every skill effect — the fx pool is capped low (see the
+  // 380-entry guard in combat.js's addFx callers) so shadowBlur's per-draw
+  // cost stays bounded regardless of enemy/projectile counts elsewhere.
+  // Skipped under prefers-reduced-motion, same as the existing screen-shake
+  // gating in combat.js/director.js.
+  const glow = !REDUCED;
   for (const f of fxs.live) {
     if (!f.alive) continue;
     const k = f.t / f.life, al = 1 - k, o = f.owner || f;
     ctx.globalAlpha = al;
+    if (glow) { ctx.shadowBlur = 12; ctx.shadowColor = f.color; }
     switch (f.kind) {
       case 'slash':
         ctx.fillStyle = f.color; ctx.beginPath();
@@ -261,6 +295,7 @@ function drawFx(sim) {
       }
     }
   }
+  ctx.shadowBlur = 0;
   ctx.globalAlpha = 1;
   ctx.textAlign = 'center';
   for (const t of texts.live) {
@@ -338,6 +373,18 @@ function drawHUD(sim) {
     if (!w) continue;
     drawIcon(ctx, w.evo ? evoInfo(w).icon : WEAPONS[w.id].icon, x + s / 2, byW + s / 2 - 3, 26);
     if (!w.evo) for (let l = 0; l < 5; l++) { ctx.fillStyle = l < w.lv ? '#6ff3e8' : 'rgba(239,230,210,0.2)'; ctx.fillRect(x + 6 + l * 6.4, byW + s - 6, 4.4, 3); }
+  }
+  // 대시 쿨다운
+  {
+    const dx0 = bx + 4 * (s + gap), dcx = dx0 + s / 2, dcy = byW + s / 2;
+    ctx.fillStyle = 'rgba(13,10,31,0.72)'; rr(dx0, byW, s, s, 5); ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(239,230,210,0.22)'; ctx.stroke();
+    const ready = h.dashCd <= 0, frac = clamp(1 - h.dashCd / DASH_CD, 0, 1);
+    if (frac > 0) {
+      ctx.strokeStyle = ready ? '#6ff3e8' : 'rgba(111,243,232,0.45)'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(dcx, dcy, s / 2 - 6, -Math.PI / 2, -Math.PI / 2 + TAU * frac); ctx.stroke();
+    }
+    ctx.fillStyle = ready ? '#6ff3e8' : '#a59fc4'; ctx.font = '700 11px ' + FONT_BODY; ctx.fillText('대시', dcx, dcy);
   }
   for (let i = 0; i < 4; i++) {
     const q = h.passives[i], x = bx + i * (30 + 4), ps = 30;

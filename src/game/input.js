@@ -8,6 +8,7 @@ import { cycleSpectate } from '../net/netSim.js';
 import { getSettings } from '../core/settings.js';
 import { requestDash } from './systems.js';
 import { sendDash } from '../net/connection.js';
+import { closeSettings } from '../ui/settings.js';
 
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -35,6 +36,19 @@ function toggleMpPause() {
 window.addEventListener('keydown', e => {
   if (capturingKeybind) return; // ui/settings.js owns key capture right now
   keys[e.code] = true;
+  // Settings can be open over the main menu, solo, or multiplayer pause —
+  // check it before any of the mode-specific branches below so Escape
+  // always closes whichever panel is actually on top, instead of falling
+  // through to toggle pause underneath while settings stays stuck open.
+  if (e.code === 'Escape' && $('settings').classList.contains('on')) { e.preventDefault(); closeSettings(); return; }
+  // The level-up cards autofocus their first option for keyboard/controller
+  // accessibility, so a native browser button "activates on Space/Enter"
+  // even though this game never binds Space/Enter to a pick action itself —
+  // holding Space for dash right as a level-up opens would otherwise select
+  // whatever's focused. Block that default activation unconditionally;
+  // actual picks still only happen through the explicit digit-key handling
+  // below (or a click), never through this side effect.
+  if ((e.code === 'Space' || e.code === 'Enter') && $('levelup').classList.contains('on')) e.preventDefault();
   const kb = getSettings().keys;
   if (mpRoom) {
     // Multiplayer doesn't use sim.G at all (that's the untouched solo
