@@ -9,6 +9,7 @@ import { getSettings } from '../core/settings.js';
 import { requestDash } from './systems.js';
 import { sendDash } from '../net/connection.js';
 import { closeSettings } from '../ui/settings.js';
+import { openEditor } from '../ui/editor.js';
 
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -41,6 +42,7 @@ window.addEventListener('keydown', e => {
   // always closes whichever panel is actually on top, instead of falling
   // through to toggle pause underneath while settings stays stuck open.
   if (e.code === 'Escape' && $('settings').classList.contains('on')) { e.preventDefault(); closeSettings(); return; }
+  if (e.ctrlKey && e.shiftKey && e.code === 'KeyE') { e.preventDefault(); openEditor(); return; }
   // The level-up cards autofocus their first option for keyboard/controller
   // accessibility, so a native browser button "activates on Space/Enter"
   // even though this game never binds Space/Enter to a pick action itself —
