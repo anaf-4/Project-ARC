@@ -1,6 +1,6 @@
 {
   "name": "project-arc",
-  "version": "0.1.0",
+  "version": "0.1.19",
   "private": true,
   "type": "module",
   "main": "electron/main.js",
@@ -9,9 +9,13 @@
     "build": "vite build",
     "preview": "vite preview",
     "electron:preview": "vite build && electron .",
-    "electron:build": "vite build && electron-builder"
+    "electron:build": "vite build && electron-builder",
+    "server:dev": "node server/index.js"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "electron": "^44.3.0",
     "electron-builder": "^26.15.3",
     "vite": "^5.4.0"
@@ -19,16 +23,34 @@
   "build": {
     "appId": "com.projectarc.game",
     "productName": "Project ARC",
-    "files": ["dist/**/*", "electron/**/*"],
-    "directories": { "output": "release" },
+    "npmRebuild": false,
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "directories": {
+      "output": "release"
+    },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "mac": {
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "linux": {
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     }
+  },
+  "dependencies": {
+    "@colyseus/schema": "^3.0.0",
+    "colyseus": "^0.16.5",
+    "colyseus.js": "^0.16.22",
+    "express": "^5.2.1"
   }
 }
