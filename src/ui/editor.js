@@ -12,8 +12,13 @@ import { banner } from './banner.js';
 let snapshot = null;
 // Accumulated edits since the editor first opened, in the same shape
 // applyLiveOverrides()/validateOverrides() expect — this is exactly what
-// gets POSTed on "동기화".
+// gets POSTed on "동기화". Seeded from the full current schema (not empty)
+// so a sync always sends the complete override set, never just this
+// session's deltas — losing that distinction previously meant syncing
+// silently discarded every override synced in an earlier session.
 let pending = {};
+
+function cloneSchema(s) { return JSON.parse(JSON.stringify(s)); }
 
 function mergeIn(path, value) {
   let node = pending;
@@ -46,11 +51,11 @@ function render() {
 }
 
 export function openEditor() {
-  if (!snapshot) snapshot = getEditableSchema();
+  if (!snapshot) { snapshot = getEditableSchema(); pending = cloneSchema(snapshot); }
   render();
   $('editor').classList.add('on');
 }
-function closeEditor() { $('editor').classList.remove('on'); }
+export function closeEditor() { $('editor').classList.remove('on'); }
 
 $('editor').addEventListener('input', e => {
   const input = e.target.closest('input[data-path]'); if (!input) return;
@@ -60,8 +65,7 @@ $('editor').addEventListener('input', e => {
 });
 $('edCloseBtn').addEventListener('click', closeEditor);
 $('edResetBtn').addEventListener('click', () => {
-  if (snapshot) applyLiveOverrides(snapshot);
-  pending = {};
+  if (snapshot) { applyLiveOverrides(snapshot); pending = cloneSchema(snapshot); }
   render();
 });
 $('edSyncBtn').addEventListener('click', async () => {

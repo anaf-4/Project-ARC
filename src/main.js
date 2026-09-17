@@ -23,30 +23,34 @@ import { applyLiveOverrides } from './data/liveConfig.js';
 import { CONFIG_URL } from './core/serverUrl.js';
 
 const LIVE_CONFIG_CACHE_KEY = 'arc-live-config';
-// Best-effort: try the server once at startup so a synced balance change
-// reaches solo players too, without requiring a new release. Never blocks
-// longer than the timeout, and always falls back gracefully (cache, then
-// pure tables.js defaults) rather than leaving the game half-started.
-async function loadLiveConfig() {
+// Applies synchronously so boot is never blocked and always starts from at
+// least the last successfully synced values, not pure defaults alone.
+function applyCachedLiveConfig() {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(CONFIG_URL, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error(`status ${res.status}`);
-    const json = await res.json();
-    applyLiveOverrides(json);
-    try { localStorage.setItem(LIVE_CONFIG_CACHE_KEY, JSON.stringify(json)); } catch (e) { /* 저장소 없음 */ }
-  } catch (e) {
-    try {
-      const cached = localStorage.getItem(LIVE_CONFIG_CACHE_KEY);
-      if (cached) applyLiveOverrides(JSON.parse(cached));
-    } catch (e2) { /* 캐시 없음: 기본값 사용 */ }
-  }
+    const cached = localStorage.getItem(LIVE_CONFIG_CACHE_KEY);
+    if (cached) applyLiveOverrides(JSON.parse(cached));
+  } catch (e) { /* 캐시 없음: 기본값 사용 */ }
+}
+// Best-effort background refresh — never blocks boot. A response that
+// lands after the game has already started only affects newly spawned
+// entities/the next run, same as any other live-balance edit (see the
+// spec's "Known limitations": overrides never retroactively apply to
+// already-spawned entities).
+function refreshLiveConfig() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  fetch(CONFIG_URL, { signal: controller.signal })
+    .then(res => { clearTimeout(timeout); if (!res.ok) throw new Error(`status ${res.status}`); return res.json(); })
+    .then(json => {
+      applyLiveOverrides(json);
+      try { localStorage.setItem(LIVE_CONFIG_CACHE_KEY, JSON.stringify(json)); } catch (e) { /* 저장소 없음 */ }
+    })
+    .catch(() => { clearTimeout(timeout); /* offline/unreachable — cache already applied, nothing more to do */ });
 }
 
 loadSettings();
-await loadLiveConfig();
+applyCachedLiveConfig();
+refreshLiveConfig();
 
 export const sim = createSimulation();
 sim.onBanner = banner;

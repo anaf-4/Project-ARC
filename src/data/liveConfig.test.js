@@ -78,3 +78,17 @@ test('validateOverrides rejects a non-object', () => {
   assert.equal(validateOverrides(null), 'overrides must be an object');
   assert.equal(validateOverrides('nope'), 'overrides must be an object');
 });
+
+test('applyLiveOverrides and validateOverrides reject __proto__ pollution attempts', () => {
+  // Built via JSON.parse, not an object literal: {__proto__: {...}} as a JS
+  // literal is prototype-setting sugar and never produces an own "__proto__"
+  // property, so it wouldn't exercise the real vulnerability. POST /config's
+  // body goes through JSON.parse, which does NOT special-case "__proto__" —
+  // it creates a normal own property — so this is the payload shape that
+  // actually reaches applyLiveOverrides()/validateOverrides() in the attack.
+  const payload = JSON.parse('{"classes":{"__proto__":{"polluted":123}}}');
+  assert.equal(validateOverrides(payload), 'unknown class: __proto__');
+  applyLiveOverrides(payload);
+  assert.equal({}.polluted, undefined); // Object.prototype was never touched
+  delete Object.prototype.polluted; // safety net in case the assertion above ever fails
+});

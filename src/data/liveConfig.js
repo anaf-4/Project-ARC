@@ -42,32 +42,45 @@ export function getEditableSchema() {
 // function is the last line of defense against a stale/malformed override
 // silently corrupting a value; validateOverrides() below is the first
 // line of defense (used by the HTTP layer to reject loudly instead).
+//
+// Every existence check here uses Object.hasOwn(), never `in` or plain
+// truthiness — both of those fall through the prototype chain, and a
+// payload like {"classes":{"__proto__":{"valueOf":123}}} would otherwise
+// resolve CLASSES["__proto__"] to Object.prototype (truthy) and then write
+// through it, a real prototype-pollution primitive reachable over
+// POST /config. Object.hasOwn checks only the object's own properties.
 export function applyLiveOverrides(overrides) {
   if (!overrides || typeof overrides !== 'object') return;
   if (overrides.weapons) for (const id in overrides.weapons) {
-    const w = WEAPONS[id]; if (!w) continue;
+    if (!Object.hasOwn(WEAPONS, id)) continue;
+    const w = WEAPONS[id];
     const o = overrides.weapons[id];
     if (o.lv) for (const i in o.lv) {
-      const row = w.lv[i]; if (!row) continue;
-      for (const k in o.lv[i]) if (k in row && isPlainNumber(o.lv[i][k])) row[k] = o.lv[i][k];
+      if (!Object.hasOwn(w.lv, i)) continue;
+      const row = w.lv[i];
+      for (const k in o.lv[i]) if (Object.hasOwn(row, k) && isPlainNumber(o.lv[i][k])) row[k] = o.lv[i][k];
     }
-    if (o.evoS) for (const k in o.evoS) if (k in w.evoS && isPlainNumber(o.evoS[k])) w.evoS[k] = o.evoS[k];
+    if (o.evoS) for (const k in o.evoS) if (Object.hasOwn(w.evoS, k) && isPlainNumber(o.evoS[k])) w.evoS[k] = o.evoS[k];
     if (o.altEvos && w.altEvos) for (const i in o.altEvos) {
-      const a = w.altEvos[i]; if (!a || !o.altEvos[i].evoS) continue;
-      for (const k in o.altEvos[i].evoS) if (k in a.evoS && isPlainNumber(o.altEvos[i].evoS[k])) a.evoS[k] = o.altEvos[i].evoS[k];
+      if (!Object.hasOwn(w.altEvos, i) || !o.altEvos[i].evoS) continue;
+      const a = w.altEvos[i];
+      for (const k in o.altEvos[i].evoS) if (Object.hasOwn(a.evoS, k) && isPlainNumber(o.altEvos[i].evoS[k])) a.evoS[k] = o.altEvos[i].evoS[k];
     }
   }
   if (overrides.enemies) for (const id in overrides.enemies) {
-    const e = ETYPES[id]; if (!e) continue;
-    for (const k in overrides.enemies[id]) if (k in e && isPlainNumber(overrides.enemies[id][k])) e[k] = overrides.enemies[id][k];
+    if (!Object.hasOwn(ETYPES, id)) continue;
+    const e = ETYPES[id];
+    for (const k in overrides.enemies[id]) if (Object.hasOwn(e, k) && isPlainNumber(overrides.enemies[id][k])) e[k] = overrides.enemies[id][k];
   }
   if (overrides.bosses) for (const i in overrides.bosses) {
-    const b = BOSSES[i]; if (!b) continue;
-    for (const k in overrides.bosses[i]) if (k in b && isPlainNumber(overrides.bosses[i][k])) b[k] = overrides.bosses[i][k];
+    if (!Object.hasOwn(BOSSES, i)) continue;
+    const b = BOSSES[i];
+    for (const k in overrides.bosses[i]) if (Object.hasOwn(b, k) && isPlainNumber(overrides.bosses[i][k])) b[k] = overrides.bosses[i][k];
   }
   if (overrides.classes) for (const id in overrides.classes) {
-    const c = CLASSES[id]; if (!c) continue;
-    for (const k in overrides.classes[id]) if (k in c && isPlainNumber(overrides.classes[id][k])) c[k] = overrides.classes[id][k];
+    if (!Object.hasOwn(CLASSES, id)) continue;
+    const c = CLASSES[id];
+    for (const k in overrides.classes[id]) if (Object.hasOwn(c, k) && isPlainNumber(overrides.classes[id][k])) c[k] = overrides.classes[id][k];
   }
 }
 
@@ -77,9 +90,9 @@ export function validateOverrides(overrides) {
   if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) return 'overrides must be an object';
   const allowedTop = ['weapons', 'enemies', 'bosses', 'classes'];
   for (const k in overrides) if (!allowedTop.includes(k)) return `unknown section: ${k}`;
-  if (overrides.weapons) for (const id in overrides.weapons) if (!WEAPONS[id]) return `unknown weapon: ${id}`;
-  if (overrides.enemies) for (const id in overrides.enemies) if (!ETYPES[id]) return `unknown enemy: ${id}`;
-  if (overrides.bosses) for (const i in overrides.bosses) if (!BOSSES[i]) return `unknown boss index: ${i}`;
-  if (overrides.classes) for (const id in overrides.classes) if (!CLASSES[id]) return `unknown class: ${id}`;
+  if (overrides.weapons) for (const id in overrides.weapons) if (!Object.hasOwn(WEAPONS, id)) return `unknown weapon: ${id}`;
+  if (overrides.enemies) for (const id in overrides.enemies) if (!Object.hasOwn(ETYPES, id)) return `unknown enemy: ${id}`;
+  if (overrides.bosses) for (const i in overrides.bosses) if (!Object.hasOwn(BOSSES, i)) return `unknown boss index: ${i}`;
+  if (overrides.classes) for (const id in overrides.classes) if (!Object.hasOwn(CLASSES, id)) return `unknown class: ${id}`;
   return null;
 }

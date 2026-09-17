@@ -1,3 +1,13 @@
+# One-time setup for the hidden live-balance editor (Ctrl+Shift+E in-game,
+# see docs/superpowers/specs/2026-09-16-live-balance-editor-design.md):
+# 1. Set EDITOR_PASSWORD and GITHUB_TOKEN below in the Render dashboard —
+#    sync:false means Render prompts for them at deploy time instead of
+#    requiring the real values committed here.
+# 2. Create the live-config branch once (the server boots fine without it —
+#    it just falls back to pure tables.js defaults — but the very first
+#    sync needs the branch to already exist, since GitHub's Contents API
+#    404s a PUT to a branch that doesn't exist rather than creating one):
+#      git checkout --orphan live-config && git rm -rf . && git commit --allow-empty -m "init live-config" && git push origin live-config
 services:
   - type: web
     name: project-arc-server
@@ -8,3 +18,7 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: EDITOR_PASSWORD
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false

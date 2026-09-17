@@ -15,14 +15,18 @@ export function createLiveConfigStore({
 
   async function boot() {
     try {
-      const res = await fetchImpl(rawUrl(repo, branch));
+      const res = await fetchImpl(rawUrl(repo, branch), { signal: AbortSignal.timeout(5000) });
       if (!res.ok) return; // e.g. 404 — the branch/file doesn't exist yet on a fresh repo
       const json = await res.json();
       if (validateOverrides(json)) return; // stale/malformed — ignore rather than half-apply
       current = json;
       applyLiveOverrides(current);
-    } catch {
-      // offline / GitHub unreachable at boot — keep pure tables.js defaults
+    } catch (e) {
+      // offline / GitHub unreachable at boot — keep pure tables.js defaults, but
+      // this must not be silent: Render (or any host) needs a signal in the
+      // logs when a deploy is running on stale/default balance instead of the
+      // last-synced values.
+      console.warn('liveConfigStore: boot fetch failed, using defaults —', e.message);
     }
   }
 

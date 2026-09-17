@@ -9,7 +9,7 @@ import { getSettings } from '../core/settings.js';
 import { requestDash } from './systems.js';
 import { sendDash } from '../net/connection.js';
 import { closeSettings } from '../ui/settings.js';
-import { openEditor } from '../ui/editor.js';
+import { openEditor, closeEditor } from '../ui/editor.js';
 
 export const keys = {};
 export const touch = { on: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
@@ -36,6 +36,15 @@ function toggleMpPause() {
 
 window.addEventListener('keydown', e => {
   if (capturingKeybind) return; // ui/settings.js owns key capture right now
+  // While the editor is open, every key belongs to it (typing into its
+  // number/password inputs) — swallow everything here before it can also
+  // set `keys[...]` (which would move the character) or reach any
+  // mode-specific shortcut below. Checked first, above even `keys[e.code]
+  // = true`, so this is the one case that DOESN'T fall through to that line.
+  if ($('editor').classList.contains('on')) {
+    if (e.code === 'Escape') { e.preventDefault(); closeEditor(); }
+    return;
+  }
   keys[e.code] = true;
   // Settings can be open over the main menu, solo, or multiplayer pause —
   // check it before any of the mode-specific branches below so Escape
