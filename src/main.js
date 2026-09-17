@@ -19,8 +19,34 @@ import './ui/settings.js';
 import { loadSettings, getSettings } from './core/settings.js';
 import { initAudio, startMusic, playHit, playHurt, playReward, resumeAudio } from './core/audio.js';
 import { showChestCard } from './ui/chestcard.js';
+import { applyLiveOverrides } from './data/liveConfig.js';
+import { CONFIG_URL } from './core/serverUrl.js';
+
+const LIVE_CONFIG_CACHE_KEY = 'arc-live-config';
+// Best-effort: try the server once at startup so a synced balance change
+// reaches solo players too, without requiring a new release. Never blocks
+// longer than the timeout, and always falls back gracefully (cache, then
+// pure tables.js defaults) rather than leaving the game half-started.
+async function loadLiveConfig() {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(CONFIG_URL, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`status ${res.status}`);
+    const json = await res.json();
+    applyLiveOverrides(json);
+    try { localStorage.setItem(LIVE_CONFIG_CACHE_KEY, JSON.stringify(json)); } catch (e) { /* 저장소 없음 */ }
+  } catch (e) {
+    try {
+      const cached = localStorage.getItem(LIVE_CONFIG_CACHE_KEY);
+      if (cached) applyLiveOverrides(JSON.parse(cached));
+    } catch (e2) { /* 캐시 없음: 기본값 사용 */ }
+  }
+}
 
 loadSettings();
+await loadLiveConfig();
 
 export const sim = createSimulation();
 sim.onBanner = banner;

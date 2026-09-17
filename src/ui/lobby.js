@@ -11,8 +11,7 @@ import { showMpLevelUp } from './levelup.js';
 import { showMpResult } from './result.js';
 import { playHit, playHurt, playReward } from '../core/audio.js';
 import { showChestCard } from './chestcard.js';
-
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'ws://localhost:2567';
+import { SERVER_URL } from '../core/serverUrl.js';
 
 export const sel = { cls: 'vanguard', stage: 900, maxPlayers: 4 };
 let classPickMode = 'solo'; // 'solo' | 'create' | 'join'
